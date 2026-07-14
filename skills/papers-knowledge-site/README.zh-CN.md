@@ -60,8 +60,8 @@ uv run python -m papers_knowledge_site.pdf_to_md batch --pdf-dir {ROOT}/FIELD-pd
 
 ## 可选 PaddleOCR MCP
 
-1. 将 `mcp/paddleocr.mcp.json.example` 合并进各宿主的 MCP 配置。  
-2. 填写 `PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN`（不要提交进 git）。  
+1. 在仓库根 `.env` 填写 `PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN=`（不要提交 `.env`）。  
+2. 将 `mcp/paddleocr.mcp.json.example` 合并进各宿主 MCP（经 `uvx --env-file .env` 读 token）。  
 3. 详见 [references/paddleocr-mcp.md](references/paddleocr-mcp.md)。
 
 | 宿主 | 典型 MCP 配置位置 |

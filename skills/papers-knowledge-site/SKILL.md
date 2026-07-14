@@ -53,7 +53,7 @@ Template: [`mcp/paddleocr.mcp.json.example`](mcp/paddleocr.mcp.json.example)
 Details: [references/paddleocr-mcp.md](references/paddleocr-mcp.md)
 
 1. User applies for token at https://aistudio.baidu.com/paddleocr  
-2. Merge example into host MCP config; fill `PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN`  
+2. Put token in repo-root `.env` as `PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN=`; merge `mcp/paddleocr.mcp.json.example` into host MCP (loads `.env` via `uvx --env-file`)  
 3. If MCP not configured / fails → **MarkItDown only**
 
 Agent tool (when ready): `paddleocr_vl` with absolute PDF path, `file_type="pdf"`.  

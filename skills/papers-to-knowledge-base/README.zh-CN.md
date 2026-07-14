@@ -36,7 +36,7 @@
 
 ## 可选 PaddleOCR MCP（阶段 B）
 
-将 [`mcp/paddleocr.mcp.json.example`](mcp/paddleocr.mcp.json.example) 合并进宿主 MCP 配置，并填写 `PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN`。无 token 时 B 仅用 MarkItDown。
+在仓库根 `.env` 填写 `PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN=`，再将 [`mcp/paddleocr.mcp.json.example`](mcp/paddleocr.mcp.json.example) 合并进宿主 MCP（通过 `--env-file .env` 读取）。无 token 时 B 仅用 MarkItDown。
 
 ## 目录结构
 

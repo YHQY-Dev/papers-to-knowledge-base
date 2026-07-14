@@ -5,38 +5,49 @@
 
 This skill does **not** harvest or download papers. OCR/convert applies to accepted PDFs already under `{DOMAIN}-pdf/`.
 
-## 1. Get a token
+## 1. Get a token → put it in repo `.env`
 
 1. Open [Baidu AI Studio PaddleOCR](https://aistudio.baidu.com/paddleocr)
 2. Apply / create an access token
-3. Put it in **your host’s** MCP config (do **not** commit the token into git)
+3. In the **repo root**, copy `.env.example` → `.env` (if needed) and set:
+
+```env
+PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN=your_token_here
+```
+
+Do **not** commit `.env`. OpenAlex can share the same file (`OPENALEX_API_KEY=`).
 
 ## 2. Wire into the host MCP config
 
-Template: `mcp/paddleocr.mcp.json.example` (JSON `mcpServers` shape used by Cursor / Claude Code / many hosts).
+Template: `mcp/paddleocr.mcp.json.example`. Token stays in `.env`; MCP loads it via `uvx --env-file`.
 
 ```json
 "PaddleOCR-VL-1.6": {
   "command": "uvx",
-  "args": ["--from", "paddleocr-mcp", "paddleocr_mcp"],
+  "args": [
+    "--env-file", ".env",
+    "--from", "paddleocr-mcp",
+    "paddleocr_mcp"
+  ],
   "env": {
     "PADDLEOCR_MCP_MODEL": "PaddleOCR-VL-1.6",
-    "PADDLEOCR_MCP_PPOCR_SOURCE": "aistudio",
-    "PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN": "<YOUR_TOKEN>"
+    "PADDLEOCR_MCP_PPOCR_SOURCE": "aistudio"
   }
 }
 ```
 
+If the MCP process cwd is **not** the repo root (common for a global `~/.cursor/mcp.json`), change `.env` to an **absolute** path, e.g. `D:/path/to/papers-to-knowledge-base/.env`.
+
 | Host | Where to merge |
 |------|----------------|
-| Cursor | `~/.cursor/mcp.json` |
+| Cursor | project `.cursor/mcp.json` (preferred) or `~/.cursor/mcp.json` |
 | Claude Code | `~/.claude.json` or project `.mcp.json` |
 | Codex | `~/.codex/config.toml` `[mcp_servers.…]` (same command/args/env) |
 | OpenCode / Pi | Host MCP / tools settings (stdio + env) |
 
 Requires local `uv` / `uvx`. Reload MCP after edit. Server id may appear as `PaddleOCR-VL-1.6` or `user-PaddleOCR-VL-1.6`.
 
-Leave `ACCESS_TOKEN` empty or omit the server → agents **must** use MarkItDown only.
+Omit the server or leave the `.env` token empty → agents **must** use MarkItDown only.
 
 ## 3. Agent usage
 

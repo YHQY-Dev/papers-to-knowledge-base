@@ -64,6 +64,19 @@ uv run python -m papers_knowledge_site.pdf_to_md -h
 
 需要 Python **3.12** 或 **3.13**。PDF 文件名：`{编号}.{标题}.pdf`。
 
+### 密钥（`.env`）
+
+在仓库根复制并编辑（**不要提交** `.env`）：
+
+```powershell
+Copy-Item .env.example .env
+# 编辑 .env：
+#   OPENALEX_API_KEY=...                 # https://openalex.org/settings/api
+#   PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN=...  # https://aistudio.baidu.com/paddleocr
+```
+
+收获脚本会自动读取 `.env`。PaddleOCR MCP 模板用 `uvx --env-file .env`，无需把 token 写进 `mcp.json`。
+
 ## 安装 skill（按助手）
 
 | 目标 | 联接 `skills/` 下这些目录 |

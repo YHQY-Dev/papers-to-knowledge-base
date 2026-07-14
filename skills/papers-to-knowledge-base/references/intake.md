@@ -88,9 +88,9 @@ Example:
 **ONLY if** `{ROUTE}` is **B** or **A→B**.  
 **Skip entirely for A only (library-only).**
 
-Ask whether an AI Studio PaddleOCR token is already configured in the host MCP config.
+Ask whether an AI Studio PaddleOCR token is already in the repo-root `.env` (`PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN`) and wired via host MCP.
 
-- If **not**: offer to help apply / wire [AI Studio PaddleOCR](https://aistudio.baidu.com/paddleocr) (currently free after registration) using the template at this skill’s root: [`../mcp/paddleocr.mcp.json.example`](../mcp/paddleocr.mcp.json.example) (same file under `papers-knowledge-site/mcp/`).
+- If **not**: offer to help apply / wire [AI Studio PaddleOCR](https://aistudio.baidu.com/paddleocr) (currently free after registration): fill `.env` from `.env.example`, then merge [`../mcp/paddleocr.mcp.json.example`](../mcp/paddleocr.mcp.json.example) (same under `papers-knowledge-site/mcp/`).
 - If user **declines** or token unavailable → B uses **MarkItDown only**. Never block the pipeline on OCR.
 
 Bind: `{OCR}` ∈ `paddleocr-mcp` | `markitdown-only` (or equivalent).

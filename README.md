@@ -64,6 +64,19 @@ uv run python -m papers_knowledge_site.pdf_to_md -h
 
 Python **3.12** or **3.13**. PDF names: `{id}.{title}.pdf`.
 
+### Secrets (`.env`)
+
+At the repo root (do **not** commit `.env`):
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env:
+#   OPENALEX_API_KEY=...                 # https://openalex.org/settings/api
+#   PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN=...  # https://aistudio.baidu.com/paddleocr
+```
+
+Harvest scripts load `.env` automatically. The PaddleOCR MCP template uses `uvx --env-file .env` so the token stays out of `mcp.json`.
+
 ## Install skills (per agent)
 
 | Goal | Link these under `skills/` |

@@ -36,7 +36,7 @@ Multi-host paths: [references/install-hosts.md](references/install-hosts.md). Se
 
 ## Optional PaddleOCR MCP (stage B)
 
-Copy [`mcp/paddleocr.mcp.json.example`](mcp/paddleocr.mcp.json.example) into the host MCP config and set `PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN`. Without a token, B uses MarkItDown only.
+Set `PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN=` in the repo-root `.env`, then merge [`mcp/paddleocr.mcp.json.example`](mcp/paddleocr.mcp.json.example) into the host MCP config (loads `.env` via `--env-file`). Without a token, B uses MarkItDown only.
 
 ## Layout
 

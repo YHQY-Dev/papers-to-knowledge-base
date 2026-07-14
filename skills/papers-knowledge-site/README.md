@@ -60,8 +60,8 @@ Acceptance: [references/checklist.md](references/checklist.md).
 
 ## Optional PaddleOCR MCP
 
-1. Copy `mcp/paddleocr.mcp.json.example` into your host’s MCP config.  
-2. Set `PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN` (do not commit secrets).  
+1. Set `PADDLEOCR_MCP_AISTUDIO_ACCESS_TOKEN=` in the repo-root `.env` (do not commit `.env`).  
+2. Merge `mcp/paddleocr.mcp.json.example` into the host MCP config (`uvx --env-file .env`).  
 3. See [references/paddleocr-mcp.md](references/paddleocr-mcp.md).
 
 | Host | Typical MCP config |

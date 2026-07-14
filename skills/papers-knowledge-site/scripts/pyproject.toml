@@ -7,6 +7,7 @@ license = "MIT"
 dependencies = [
     "markitdown[pdf]>=0.1.6",
     "PyMuPDF>=1.24.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [build-system]
