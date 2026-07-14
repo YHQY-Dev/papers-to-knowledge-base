@@ -1,0 +1,23 @@
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/.venv/
+**/venv/
+**/.pytest_cache/
+**/uv.lock
+*.egg-info/
+.coverage
+htmlcov/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Local secrets — never commit tokens
+.env
+.env.*
+**/mcp.local.json
+**/*token*

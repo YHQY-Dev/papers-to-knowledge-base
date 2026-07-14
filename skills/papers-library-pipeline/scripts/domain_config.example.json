@@ -1,0 +1,32 @@
+{
+  "domain": "myfield",
+  "root": "D:/work/myfield-kb",
+  "mailto": "kb-harvester@example.com",
+  "next_id_start": 1000,
+  "per_theme_limit": 40,
+  "reference_expand_top": 15,
+  "ai_download_threshold": 75,
+  "ai_backfill_threshold": 60,
+  "search_themes": [
+    "myfield review",
+    "myfield theory method"
+  ],
+  "positive_keywords": [
+    "myfield",
+    "review",
+    "method",
+    "theory"
+  ],
+  "negative_cues": [
+    "case study of",
+    "prepared by",
+    "synthesis of"
+  ],
+  "type_bonus": {
+    "book": 35,
+    "monograph": 35,
+    "review": 30,
+    "book-chapter": 20,
+    "article": 5
+  }
+}

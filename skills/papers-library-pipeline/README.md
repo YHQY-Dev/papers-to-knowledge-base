@@ -1,0 +1,78 @@
+# papers-library-pipeline
+
+[中文说明](README.zh-CN.md)
+
+**Agent Skill (stage A):** harvest, score, download, and catalog academic papers into a local library with an Excel triage list. No PDF→Markdown, no OCR, no static site.
+
+Part of the `papers-to-knowledge-base` family. For intake/routing use the orchestrator; for Markdown/site use `papers-knowledge-site`.
+
+Compatible with **Cursor**, **Claude Code**, **Codex**, **OpenCode**, **Pi**, and hosts that follow the [Agent Skills](https://agentskills.io) `SKILL.md` layout.
+
+## What you get
+
+| Piece | Role |
+|-------|------|
+| `SKILL.md` | Agent rules for library-only work |
+| `scripts/papers_library_pipeline/` | OpenAlex/Crossref harvest, PDF fetch (httpx), PDF-only manifest sync, Excel export |
+| `references/checklist.md` | Library acceptance checks |
+
+**Acceptance flags:** write `accepted` (preferred) or `selected` (alias). `--selected-only` treats either as true.  
+**PDF filenames:** `{local_id}.{sanitized_title}.pdf` only (e.g. `1001.Guinier_approximation.pdf`).  
+**A-only dirs:** creates `*-pdf/`, `*-candidates/`, `*-catalog/` — not `*-md/` / `*-web/`.  
+**Unit tests** live outside this skill: [`../../_dev/papers-library-pipeline/`](../../_dev/papers-library-pipeline/).
+
+## Quick install
+
+```bash
+mkdir -p ~/.agents/skills
+ln -s /absolute/path/to/papers-library-pipeline ~/.agents/skills/papers-library-pipeline
+```
+
+**Windows PowerShell:**
+
+```powershell
+$src = "D:\software\SAS\Skill\skills\papers-library-pipeline"
+New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.agents\skills\papers-library-pipeline" -Target $src
+New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.cursor\skills\papers-library-pipeline" -Target $src
+```
+
+Prefer installing with the orchestrator so intake + routing stay available.
+
+## Scripts setup
+
+```bash
+cd scripts
+pip install -r requirements.txt
+# copy domain_config.example.json → {ROOT}/domain_config.json
+export DOMAIN_KB_CONFIG=/path/to/domain_config.json
+python -m papers_library_pipeline.run_harvest
+python -m papers_library_pipeline.pdf_fetch fetch-batch ../FIELD-candidates/candidates.json \
+  --pdf-dir ../FIELD-pdf --manual ../FIELD-catalog/manual-needed.md \
+  --selected-only --assign-ids
+python -m papers_library_pipeline.sync_manifest
+python -m papers_library_pipeline.export_excel
+```
+
+Excel output: **`{DOMAIN}-catalog/literature.xlsx`**.
+
+Tell the agent: *“Use papers-library-pipeline to harvest and download papers for …”*
+
+## Layout
+
+```text
+papers-library-pipeline/
+  SKILL.md
+  README.md / README.zh-CN.md
+  references/checklist.md
+  scripts/
+    requirements.txt
+    domain_config.example.json
+    seed_works.example.json
+    papers_library_pipeline/
+    tests/
+```
+
+## Boundaries
+
+- **In scope:** harvest, triage, PDF download, catalog, Excel
+- **Out of scope:** MarkItDown, PaddleOCR, `{DOMAIN}-md/`, `{DOMAIN}-web/`
