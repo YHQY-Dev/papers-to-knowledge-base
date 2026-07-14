@@ -21,36 +21,27 @@ Compatible with **Cursor**, **Claude Code**, **Codex**, **OpenCode**, **Pi**, an
 **A-only dirs:** creates `*-pdf/`, `*-candidates/`, `*-catalog/` — not `*-md/` / `*-web/`.  
 **Unit tests** live outside this skill: [`../../_dev/papers-library-pipeline/`](../../_dev/papers-library-pipeline/).
 
-## Quick install
+## Install
 
-```bash
-mkdir -p ~/.agents/skills
-ln -s /absolute/path/to/papers-library-pipeline ~/.agents/skills/papers-library-pipeline
-```
-
-**Windows PowerShell:**
-
-```powershell
-$src = "D:\software\SAS\Skill\skills\papers-library-pipeline"
-New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.agents\skills\papers-library-pipeline" -Target $src
-New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.cursor\skills\papers-library-pipeline" -Target $src
-```
-
-Prefer installing with the orchestrator so intake + routing stay available.
+Link into **the skills directory of the agent you use** (Cursor / Claude Code / Codex / …).  
+See the [repo README](../../README.md) — do not install into every host at once.  
+Prefer also linking the orchestrator so intake + routing stay available.
 
 ## Scripts setup
 
+Shared uv workspace at the **repo root** (with stage B):
+
 ```bash
-cd scripts
-pip install -r requirements.txt
-# copy domain_config.example.json → {ROOT}/domain_config.json
+# from repo root
+uv sync
+# copy scripts/domain_config.example.json → {ROOT}/domain_config.json
 export DOMAIN_KB_CONFIG=/path/to/domain_config.json
-python -m papers_library_pipeline.run_harvest
-python -m papers_library_pipeline.pdf_fetch fetch-batch ../FIELD-candidates/candidates.json \
-  --pdf-dir ../FIELD-pdf --manual ../FIELD-catalog/manual-needed.md \
+uv run python -m papers_library_pipeline.run_harvest
+uv run python -m papers_library_pipeline.pdf_fetch fetch-batch {ROOT}/FIELD-candidates/candidates.json \
+  --pdf-dir {ROOT}/FIELD-pdf --manual {ROOT}/FIELD-catalog/manual-needed.md \
   --selected-only --assign-ids
-python -m papers_library_pipeline.sync_manifest
-python -m papers_library_pipeline.export_excel
+uv run python -m papers_library_pipeline.sync_manifest
+uv run python -m papers_library_pipeline.export_excel
 ```
 
 Excel output: **`{DOMAIN}-catalog/literature.xlsx`**.
@@ -65,11 +56,10 @@ papers-library-pipeline/
   README.md / README.zh-CN.md
   references/checklist.md
   scripts/
-    requirements.txt
+    pyproject.toml
     domain_config.example.json
     seed_works.example.json
     papers_library_pipeline/
-    tests/
 ```
 
 ## Boundaries

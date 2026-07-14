@@ -21,36 +21,27 @@
 **仅 A 目录：** 创建 `*-pdf/`、`*-candidates/`、`*-catalog/`，**不**创建 `*-md/` / `*-web/`。  
 **单元测试**不在本 skill 内：[`../../_dev/papers-library-pipeline/`](../../_dev/papers-library-pipeline/)。
 
-## 快速安装
+## 安装
 
-```bash
-mkdir -p ~/.agents/skills
-ln -s /absolute/path/to/papers-library-pipeline ~/.agents/skills/papers-library-pipeline
-```
-
-**Windows PowerShell：**
-
-```powershell
-$src = "D:\software\SAS\Skill\skills\papers-library-pipeline"
-New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.agents\skills\papers-library-pipeline" -Target $src
-New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.cursor\skills\papers-library-pipeline" -Target $src
-```
-
-建议与编排 skill 一起安装，以便保留 intake 与路由。
+只联接到**你正在用的那个 agent** 的 skills 目录（Cursor / Claude Code / Codex / …）。  
+见仓库根 [README](../../README.zh-CN.md)，不要一次装到所有宿主。  
+建议同时联接编排 skill，以便保留 intake 与路由。
 
 ## 脚本环境
 
+仓库根目录的共用 uv workspace（与阶段 B 共用 `.venv`）：
+
 ```bash
-cd scripts
-pip install -r requirements.txt
-# 复制 domain_config.example.json → {ROOT}/domain_config.json
+# 在仓库根执行
+uv sync
+# 复制 scripts/domain_config.example.json → {ROOT}/domain_config.json
 export DOMAIN_KB_CONFIG=/path/to/domain_config.json
-python -m papers_library_pipeline.run_harvest
-python -m papers_library_pipeline.pdf_fetch fetch-batch ../FIELD-candidates/candidates.json \
-  --pdf-dir ../FIELD-pdf --manual ../FIELD-catalog/manual-needed.md \
+uv run python -m papers_library_pipeline.run_harvest
+uv run python -m papers_library_pipeline.pdf_fetch fetch-batch {ROOT}/FIELD-candidates/candidates.json \
+  --pdf-dir {ROOT}/FIELD-pdf --manual {ROOT}/FIELD-catalog/manual-needed.md \
   --selected-only --assign-ids
-python -m papers_library_pipeline.sync_manifest
-python -m papers_library_pipeline.export_excel
+uv run python -m papers_library_pipeline.sync_manifest
+uv run python -m papers_library_pipeline.export_excel
 ```
 
 Excel 输出路径：**`{DOMAIN}-catalog/literature.xlsx`**。
@@ -65,11 +56,10 @@ papers-library-pipeline/
   README.md / README.zh-CN.md
   references/checklist.md
   scripts/
-    requirements.txt
+    pyproject.toml
     domain_config.example.json
     seed_works.example.json
     papers_library_pipeline/
-    tests/
 ```
 
 ## 边界

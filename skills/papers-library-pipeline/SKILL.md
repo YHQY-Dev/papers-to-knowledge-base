@@ -100,9 +100,21 @@ No `{DOMAIN}-md/` or `{DOMAIN}-web/` required for A-only.
 
 ## Bundled code
 
-Copy `scripts/` into `{ROOT}` or set `PYTHONPATH` to skill `scripts/`.  
-`domain_config.example.json` → `{ROOT}/domain_config.json`.  
-Optional seeds: `seed_works.example.json` → `{DOMAIN}-candidates/seed_works.json`.
+From the **repo root** (shared uv workspace with stage B):
+
+```bash
+uv sync
+export DOMAIN_KB_CONFIG=/path/to/domain_config.json
+uv run python -m papers_library_pipeline.run_harvest
+uv run python -m papers_library_pipeline.pdf_fetch fetch-batch {ROOT}/{DOMAIN}-candidates/candidates.json \
+  --pdf-dir {ROOT}/{DOMAIN}-pdf --manual {ROOT}/{DOMAIN}-catalog/manual-needed.md \
+  --selected-only --assign-ids
+uv run python -m papers_library_pipeline.sync_manifest
+uv run python -m papers_library_pipeline.export_excel
+```
+
+Copy `scripts/domain_config.example.json` → `{ROOT}/domain_config.json`.  
+Optional seeds: `scripts/seed_works.example.json` → `{DOMAIN}-candidates/seed_works.json`.
 
 | Module | Use |
 |--------|-----|
@@ -110,18 +122,6 @@ Optional seeds: `seed_works.example.json` → `{DOMAIN}-candidates/seed_works.js
 | `pdf_fetch` | search/download PDF (`--assign-ids`) |
 | `sync_manifest` | Rebuild catalog from PDF disk (`--include-md` optional) |
 | `export_excel` | Write `literature.xlsx` |
-
-```bash
-pip install -r scripts/requirements.txt
-export DOMAIN_KB_CONFIG=/path/to/domain_config.json
-cd scripts
-python -m papers_library_pipeline.run_harvest
-python -m papers_library_pipeline.pdf_fetch fetch-batch ../{DOMAIN}-candidates/candidates.json \
-  --pdf-dir ../{DOMAIN}-pdf --manual ../{DOMAIN}-catalog/manual-needed.md \
-  --selected-only --assign-ids
-python -m papers_library_pipeline.sync_manifest
-python -m papers_library_pipeline.export_excel
-```
 
 `pdf_fetch` order: OA → mirrors → manual.  
 `ai_*_threshold` in config are **AI triage hints**, not enforced by scripts.

@@ -34,33 +34,11 @@
 - 录用名单（`{DOMAIN}-catalog/literature.xlsx` 和/或 manifest）
 - `{LANG}` 与 OCR 偏好（编排器问诊结果；单独调用时需补问）
 
-## 快速安装
+## 安装
 
-推荐用 **符号链接 / 目录联接**，一份源码给所有工具用。
-
-```bash
-mkdir -p ~/.agents/skills
-ln -s /absolute/path/to/papers-knowledge-site ~/.agents/skills/papers-knowledge-site
-
-mkdir -p ~/.claude/skills
-ln -s /absolute/path/to/papers-knowledge-site ~/.claude/skills/papers-knowledge-site
-
-mkdir -p ~/.cursor/skills
-ln -s /absolute/path/to/papers-knowledge-site ~/.cursor/skills/papers-knowledge-site
-```
-
-**Windows PowerShell：**
-
-```powershell
-$src = "D:\software\SAS\Skill\skills\papers-knowledge-site"
-New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.agents\skills\papers-knowledge-site" -Target $src
-New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.claude\skills\papers-knowledge-site" -Target $src
-New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.cursor\skills\papers-knowledge-site" -Target $src
-```
-
-另可联接到 `~/.config/opencode/skills/`、`~/.pi/agent/skills/`，或项目内 `.agents/skills/`。
-
-安装后请重启 / 重载 agent。
+只联接到**你正在用的那个 agent** 的 skills 目录。  
+见仓库根 [README](../../README.zh-CN.md)，不要一次装到所有宿主。  
+从零开始时建议同时联接编排 skill。
 
 ## 转换与建站（摘要）
 
@@ -70,9 +48,9 @@ PDF + 录用名单 → 转换（有 PaddleOCR 则可用，否则 MarkItDown）
 ```
 
 ```bash
-cd scripts
-pip install -r requirements.txt
-python -m papers_knowledge_site.pdf_to_md batch --pdf-dir ../FIELD-pdf --md-dir ../FIELD-md
+# 在仓库根执行（与阶段 A 共用 uv workspace）
+uv sync
+uv run python -m papers_knowledge_site.pdf_to_md batch --pdf-dir {ROOT}/FIELD-pdf --md-dir {ROOT}/FIELD-md
 ```
 
 对 agent 说：*「用 papers-knowledge-site 把这些 PDF 转成 Markdown 并建静态知识站」*。
@@ -107,12 +85,11 @@ papers-knowledge-site/
     paddleocr-mcp.md
     checklist.md
   scripts/
-    requirements.txt
+    pyproject.toml
     papers_knowledge_site/   # Python 包
 ```
 
 ## 许可 / 说明
 
-脚本可复制到项目 `{ROOT}/scripts/`，或通过 `PYTHONPATH` 调用。  
 公开站点只引用 DOI/OA，不要链到本地 `*-pdf/` / `*-md/`。  
 搜论文 / 下载 / Excel 请用 `papers-library-pipeline`。

@@ -61,7 +61,7 @@ Then `write_md_bundle(pdf, out_dir, text, converter="paddleocr-vl")`.
 
 ## Bundled code
 
-Copy `scripts/` into `{ROOT}` or set `PYTHONPATH` to skill `scripts/`.
+From the **repo root** (shared uv workspace with stage A):
 
 | Module | Use |
 |--------|-----|
@@ -70,12 +70,11 @@ Copy `scripts/` into `{ROOT}` or set `PYTHONPATH` to skill `scripts/`.
 | `citation_extract` | DOI/refs from MD (clues only; no download) |
 
 ```bash
-pip install -r scripts/requirements.txt
-cd scripts
+uv sync
 # default convert (no OCR MCP needed):
-python -m papers_knowledge_site.pdf_to_md batch --pdf-dir ../{DOMAIN}-pdf --md-dir ../{DOMAIN}-md
-python -m papers_knowledge_site.pdf_to_md convert path/to/id.pdf --out-dir ../{DOMAIN}-md/id
-python -m papers_knowledge_site.citation_extract ../{DOMAIN}-md/id/content.md --id id -o ../{DOMAIN}-catalog/citations/id.json
+uv run python -m papers_knowledge_site.pdf_to_md batch --pdf-dir {ROOT}/{DOMAIN}-pdf --md-dir {ROOT}/{DOMAIN}-md
+uv run python -m papers_knowledge_site.pdf_to_md convert path/to/id.name.pdf --out-dir {ROOT}/{DOMAIN}-md/id
+uv run python -m papers_knowledge_site.citation_extract {ROOT}/{DOMAIN}-md/id/content.md --id id -o {ROOT}/{DOMAIN}-catalog/citations/id.json
 ```
 
 ## Pipeline

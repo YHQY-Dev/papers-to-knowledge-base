@@ -34,33 +34,11 @@ Part of the `papers-to-knowledge-base` family:
 - Acceptance list (`{DOMAIN}-catalog/literature.xlsx` and/or manifest)
 - `{LANG}` and OCR preference (from orchestrator intake, or ask if alone)
 
-## Quick install
+## Install
 
-Prefer a **symlink/junction** so one copy serves every tool.
-
-```bash
-mkdir -p ~/.agents/skills
-ln -s /absolute/path/to/papers-knowledge-site ~/.agents/skills/papers-knowledge-site
-
-mkdir -p ~/.claude/skills
-ln -s /absolute/path/to/papers-knowledge-site ~/.claude/skills/papers-knowledge-site
-
-mkdir -p ~/.cursor/skills
-ln -s /absolute/path/to/papers-knowledge-site ~/.cursor/skills/papers-knowledge-site
-```
-
-**Windows PowerShell:**
-
-```powershell
-$src = "D:\software\SAS\Skill\skills\papers-knowledge-site"
-New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.agents\skills\papers-knowledge-site" -Target $src
-New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.claude\skills\papers-knowledge-site" -Target $src
-New-Item -ItemType Junction -Force -Path "$env:USERPROFILE\.cursor\skills\papers-knowledge-site" -Target $src
-```
-
-Also useful: `~/.config/opencode/skills/`, `~/.pi/agent/skills/`, or project `.agents/skills/`.
-
-Reload / restart the agent after install.
+Link into **the skills directory of the agent you use** only.  
+See the [repo README](../../README.md) — do not install into every host at once.  
+Prefer also linking the orchestrator for intake when starting from scratch.
 
 ## Convert + site (summary)
 
@@ -70,9 +48,9 @@ PDFs + acceptance → Convert (PaddleOCR MCP? else MarkItDown)
 ```
 
 ```bash
-cd scripts
-pip install -r requirements.txt
-python -m papers_knowledge_site.pdf_to_md batch --pdf-dir ../FIELD-pdf --md-dir ../FIELD-md
+# from repo root (shared uv workspace with stage A)
+uv sync
+uv run python -m papers_knowledge_site.pdf_to_md batch --pdf-dir {ROOT}/FIELD-pdf --md-dir {ROOT}/FIELD-md
 ```
 
 Tell the agent: *“Use papers-knowledge-site to convert these PDFs and build the static knowledge site.”*
@@ -107,12 +85,11 @@ papers-knowledge-site/
     paddleocr-mcp.md
     checklist.md
   scripts/
-    requirements.txt
+    pyproject.toml
     papers_knowledge_site/   # Python package
 ```
 
 ## License / notes
 
-Scripts may be copied into `{ROOT}/scripts/` or used via `PYTHONPATH`.  
 Public sites must cite DOI/OA only — do not publish links into local `*-pdf/` / `*-md/` trees.  
 For harvest/download/Excel, use `papers-library-pipeline`.
