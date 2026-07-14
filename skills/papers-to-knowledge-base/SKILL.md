@@ -43,6 +43,8 @@ Human docs: [README.md](README.md) · [README.zh-CN.md](README.zh-CN.md) · [ref
 
 Load and follow those skills’ `SKILL.md` after intake confirmation. Do not reimplement their pipelines here.
 
+When handing off to **A**, if the host supports subagents, prefer **parallel** harvest/review shards as described in `papers-library-pipeline` ([parallel-subagents.md](../papers-library-pipeline/references/parallel-subagents.md)).
+
 ## Routing
 
 | Intent | Intake | Action |

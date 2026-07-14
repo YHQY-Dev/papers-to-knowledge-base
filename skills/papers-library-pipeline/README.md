@@ -19,7 +19,8 @@ Compatible with **Cursor**, **Claude Code**, **Codex**, **OpenCode**, **Pi**, an
 **Acceptance flags:** write `accepted` (preferred) or `selected` (alias). `--selected-only` treats either as true.  
 **PDF filenames:** `{local_id}.{sanitized_title}.pdf` only (e.g. `1001.Guinier_approximation.pdf`).  
 **A-only dirs:** creates `*-pdf/`, `*-candidates/`, `*-catalog/` — not `*-md/` / `*-web/`.  
-**Unit tests** live outside this skill: [`../../_dev/papers-library-pipeline/`](../../_dev/papers-library-pipeline/).
+**Unit tests** live outside this skill: [`../../_dev/papers-library-pipeline/`](../../_dev/papers-library-pipeline/).  
+**Parallel subagents** (when the host supports them): [references/parallel-subagents.md](references/parallel-subagents.md).
 
 ## Install
 

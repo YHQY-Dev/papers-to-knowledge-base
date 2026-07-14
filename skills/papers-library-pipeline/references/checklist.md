@@ -26,3 +26,4 @@ Fill `{DOMAIN}`, `{N}`.
 
 - [ ] Intake vars (`{DOMAIN}`, `{ROOT}`, `{N}`, `{THEMES}`) confirmed before bulk work
 - [ ] Vars documented in `{ROOT}/specs/` when using the orchestrator
+- [ ] If host supports subagents and work is large: parallel harvest/review shards used; parent merged before download ([parallel-subagents.md](parallel-subagents.md))

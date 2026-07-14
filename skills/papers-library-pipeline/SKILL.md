@@ -16,7 +16,7 @@ Humans read PDFs; this skill does **not** convert to Markdown or build a site.
 
 Sibling: orchestrator `papers-to-knowledge-base`; site stage is `papers-knowledge-site`.
 
-Human docs: [README.md](README.md) · [README.zh-CN.md](README.zh-CN.md) · [references/checklist.md](references/checklist.md).
+Human docs: [README.md](README.md) · [README.zh-CN.md](README.zh-CN.md) · [references/checklist.md](references/checklist.md) · [references/parallel-subagents.md](references/parallel-subagents.md).
 
 ## When NOT to use
 
@@ -62,6 +62,16 @@ When invoked from `papers-to-knowledge-base`, assume **Q0 + Phase 1–2** intake
 | 6 | [checklist.md](references/checklist.md) |
 
 Rejected / backfill rows stay in Excel with reasons.
+
+## Parallel subagents (when available)
+
+If the host can dispatch **subagents**, use **multiple in parallel** for independent stage-A work — especially harvest shards and review/scoring batches. Details: [references/parallel-subagents.md](references/parallel-subagents.md).
+
+**Do parallelize:** theme/query shards; disjoint candidate slices for AI triage (`ai_score`, `accepted`, `reason`).  
+**Do not parallelize without a single merger:** writing `candidates.json`, assigning `local_id`, `fetch-batch`, final `export_excel`.
+
+Pattern: parent splits → N subagents return structured JSON → parent dedupes/merges → one download + Excel pass.  
+If subagents are unavailable, run the pipeline sequentially (same stages).
 
 ## Excel columns
 
