@@ -7,6 +7,14 @@ from typing import Any
 
 import httpx
 
+# Cap sleep so a huge Retry-After (e.g. OpenAlex budget reset at midnight UTC)
+# cannot freeze harvest or tests for hours.
+MAX_RETRY_WAIT_S = 20.0
+
+
+class HttpRateLimited(RuntimeError):
+    """Hard rate limit / exhausted quota; do not keep sleeping."""
+
 
 def get_json(
     url: str,
@@ -25,11 +33,25 @@ def get_json(
                 resp = client.get(url, params=params)
                 if resp.status_code in {429, 503}:
                     ra = resp.headers.get("Retry-After")
-                    wait = float(ra) if ra and str(ra).isdigit() else (3.0 * (attempt + 1))
+                    if ra and str(ra).replace(".", "", 1).isdigit():
+                        wait = float(ra)
+                    else:
+                        wait = 3.0 * (attempt + 1)
+                    if wait > MAX_RETRY_WAIT_S:
+                        detail = ""
+                        try:
+                            detail = resp.text[:300]
+                        except Exception:
+                            pass
+                        raise HttpRateLimited(
+                            f"{resp.status_code} rate limited (Retry-After={wait}s): {url} {detail}"
+                        )
                     time.sleep(wait)
                     continue
                 resp.raise_for_status()
                 return resp.json()
+        except HttpRateLimited:
+            raise
         except (httpx.HTTPError, ValueError) as e:
             last_err = e
             time.sleep(0.8 * (attempt + 1))

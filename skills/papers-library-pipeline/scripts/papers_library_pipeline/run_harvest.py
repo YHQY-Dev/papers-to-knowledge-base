@@ -66,14 +66,20 @@ def harvest_theme(theme: str, cfg: dict) -> list[dict]:
     mailto = cfg.get("mailto") or "kb-harvester@example.com"
     limit = int(cfg.get("per_theme_limit") or 40)
     items: list[dict] = []
+    # OpenAlex first; on daily budget exhaustion, skip for the rest of this run.
     for typ in ("review", "book", None):
+        if openalex_client.is_rate_limited():
+            break
         try:
             items.extend(
                 openalex_client.search_works(theme, per_page=limit, typ=typ, mailto=mailto)
             )
         except Exception as e:
             print(f"[openalex] theme={theme!r} typ={typ}: {e}", file=sys.stderr)
+        if openalex_client.is_rate_limited():
+            break
         time.sleep(1.0)
+    # Crossref always runs (sole source when OpenAlex is rate-limited).
     for typ in ("book", None):
         try:
             items.extend(
@@ -89,6 +95,13 @@ def harvest_theme(theme: str, cfg: dict) -> list[dict]:
 
 
 def expand_references(items: list[dict], cfg: dict) -> list[dict]:
+    """Expand OpenAlex referenced_works. No-op if OpenAlex is rate-limited."""
+    if openalex_client.is_rate_limited():
+        print(
+            "[openalex] skip reference expand (rate-limited); candidates still from Crossref",
+            file=sys.stderr,
+        )
+        return []
     mailto = cfg.get("mailto") or "kb-harvester@example.com"
     top_n = int(cfg.get("reference_expand_top") or 15)
     ranked = sorted(items, key=lambda r: -(r.get("script_score") or 0))
@@ -96,6 +109,8 @@ def expand_references(items: list[dict], cfg: dict) -> list[dict]:
     seen_ids: set[str] = set()
     count = 0
     for rec in ranked:
+        if openalex_client.is_rate_limited():
+            break
         refs = rec.get("referenced_works") or []
         if not refs:
             continue
@@ -103,6 +118,8 @@ def expand_references(items: list[dict], cfg: dict) -> list[dict]:
         if count > top_n:
             break
         for wid in refs[:40]:
+            if openalex_client.is_rate_limited():
+                break
             if wid in seen_ids:
                 continue
             seen_ids.add(wid)

@@ -114,6 +114,8 @@ From the **repo root** (shared uv workspace with stage B):
 
 ```bash
 uv sync
+# Tokens: copy repo-root .env.example → .env and set OPENALEX_API_KEY=
+# https://openalex.org/settings/api
 export DOMAIN_KB_CONFIG=/path/to/domain_config.json
 uv run python -m papers_library_pipeline.run_harvest
 uv run python -m papers_library_pipeline.pdf_fetch fetch-batch {ROOT}/{DOMAIN}-candidates/candidates.json \
@@ -128,7 +130,7 @@ Optional seeds: `scripts/seed_works.example.json` → `{DOMAIN}-candidates/seed_
 
 | Module | Use |
 |--------|-----|
-| `run_harvest` | OpenAlex+Crossref → candidates |
+| `run_harvest` | OpenAlex+Crossref → candidates; if OpenAlex daily budget is exhausted, skip OpenAlex and continue with Crossref only |
 | `pdf_fetch` | search/download PDF (`--assign-ids`) |
 | `sync_manifest` | Rebuild catalog from PDF disk (`--include-md` optional) |
 | `export_excel` | Write `literature.xlsx` |

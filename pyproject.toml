@@ -27,3 +27,10 @@ members = [
 [tool.uv.sources]
 papers-library-pipeline = { workspace = true }
 papers-knowledge-site = { workspace = true }
+
+[tool.pytest.ini_options]
+markers = [
+    "network: live OpenAlex / Crossref / PDF download (needs HTTPS)",
+]
+# Default: run everything including network. Offline: pytest -m "not network"
+testpaths = ["_dev"]

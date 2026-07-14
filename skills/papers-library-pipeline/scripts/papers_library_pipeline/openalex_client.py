@@ -1,11 +1,66 @@
 from __future__ import annotations
 
+import os
 import re
+import sys
 from typing import Any
 
-from .http_util import get_json
+from .env_load import load_repo_env
+from .http_util import HttpRateLimited, get_json
+
+load_repo_env()
 
 OPENALEX = "https://api.openalex.org/works"
+
+# Process-local: once daily budget / hard 429 hits, skip further OpenAlex calls.
+_rate_limited_reason: str | None = None
+
+
+def is_rate_limited() -> bool:
+    return _rate_limited_reason is not None
+
+
+def rate_limited_reason() -> str | None:
+    return _rate_limited_reason
+
+
+def mark_rate_limited(reason: str | BaseException) -> None:
+    """Disable OpenAlex for the rest of this process (quota exhausted)."""
+    global _rate_limited_reason
+    if _rate_limited_reason is not None:
+        return
+    _rate_limited_reason = str(reason)
+    print(
+        f"[openalex] rate/budget limited — skipping OpenAlex for this run; "
+        f"using Crossref instead. ({_rate_limited_reason})",
+        file=sys.stderr,
+    )
+
+
+def reset_rate_limit_state() -> None:
+    """Test helper: clear the process-local skip flag."""
+    global _rate_limited_reason
+    _rate_limited_reason = None
+
+
+def _api_key() -> str | None:
+    key = (os.environ.get("OPENALEX_API_KEY") or "").strip()
+    return key or None
+
+
+def _auth_params(mailto: str = "kb-harvester@example.com") -> dict[str, Any]:
+    """Prefer API key (current OpenAlex auth); keep mailto as polite fallback."""
+    params: dict[str, Any] = {}
+    key = _api_key()
+    if key:
+        params["api_key"] = key
+    else:
+        params["mailto"] = mailto
+    return params
+
+
+def _user_agent(mailto: str = "kb-harvester@example.com") -> str:
+    return f"papers-library-pipeline/0.1 (mailto:{mailto})"
 
 
 def _invert_abstract(inv: dict[str, list[int]] | None) -> str:
@@ -74,33 +129,40 @@ def search_works(
     typ: str | None = None,
     mailto: str = "kb-harvester@example.com",
 ) -> list[dict[str, Any]]:
+    if is_rate_limited():
+        return []
     params: dict[str, Any] = {
         "search": query,
         "per_page": per_page,
-        "mailto": mailto,
         "sort": "cited_by_count:desc",
+        **_auth_params(mailto),
     }
     if typ:
         params["filter"] = f"type:{typ}"
-    data = get_json(
-        OPENALEX,
-        params,
-        user_agent=f"Domain-KB-Harvester/0.1 (mailto:{mailto})",
-    )
+    try:
+        data = get_json(OPENALEX, params, user_agent=_user_agent(mailto))
+    except HttpRateLimited as e:
+        mark_rate_limited(e)
+        return []
     return [work_to_record(w) for w in data.get("results") or []]
 
 
 def get_work_by_id(
     openalex_id: str, mailto: str = "kb-harvester@example.com"
 ) -> dict[str, Any] | None:
+    if is_rate_limited():
+        return None
     wid = openalex_id.rstrip("/").split("/")[-1]
     try:
         data = get_json(
             f"{OPENALEX}/{wid}",
-            {"mailto": mailto},
-            user_agent=f"Domain-KB-Harvester/0.1 (mailto:{mailto})",
+            _auth_params(mailto),
+            user_agent=_user_agent(mailto),
         )
         return work_to_record(data)
+    except HttpRateLimited as e:
+        mark_rate_limited(e)
+        return None
     except Exception:
         return None
 
@@ -108,15 +170,20 @@ def get_work_by_id(
 def search_by_doi(
     doi: str, mailto: str = "kb-harvester@example.com"
 ) -> dict[str, Any] | None:
+    if is_rate_limited():
+        return None
     doi = doi.lower().replace("https://doi.org/", "")
     try:
         data = get_json(
             OPENALEX,
-            {"filter": f"doi:{doi}", "mailto": mailto},
-            user_agent=f"Domain-KB-Harvester/0.1 (mailto:{mailto})",
+            {"filter": f"doi:{doi}", **_auth_params(mailto)},
+            user_agent=_user_agent(mailto),
         )
         results = data.get("results") or []
         return work_to_record(results[0]) if results else None
+    except HttpRateLimited as e:
+        mark_rate_limited(e)
+        return None
     except Exception:
         return None
 

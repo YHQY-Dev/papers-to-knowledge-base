@@ -9,7 +9,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -106,7 +106,7 @@ def _extract_pdf_url(html: str, page_url: str) -> str | None:
 
 def _fetch_crossref_metadata(doi: str) -> dict[str, Any]:
     doi = _normalize_doi(doi)
-    url = f"https://api.crossref.org/works/{doi}"
+    url = f"https://api.crossref.org/works/{quote(doi, safe='')}"
     try:
         with _client(verify=True) as client:
             resp = client.get(url)
@@ -136,29 +136,52 @@ def _fetch_crossref_metadata(doi: str) -> dict[str, Any]:
         return {}
 
 
-def resolve_oa_pdf_url(doi: str, mailto: str = "kb-harvester@example.com") -> str | None:
-    """Unpaywall then OpenAlex OA URL."""
+def arxiv_pdf_url_from_doi(doi: str) -> str | None:
+    """Map arXiv DOIs (10.48550/arXiv.*) to the public arXiv PDF URL."""
     doi = _normalize_doi(doi).lower()
-    try:
-        data = get_json(f"https://api.unpaywall.org/v2/{doi}", {"email": mailto})
-        loc = data.get("best_oa_location") or {}
-        url = loc.get("url_for_pdf") or loc.get("url")
-        if url:
-            return url
-    except Exception:
-        pass
-    try:
-        data = get_json(
-            "https://api.openalex.org/works",
-            {"filter": f"doi:{doi}", "mailto": mailto},
-            user_agent=f"Domain-KB-Harvester/0.1 (mailto:{mailto})",
-        )
-        results = data.get("results") or []
-        if results:
-            return (results[0].get("open_access") or {}).get("oa_url")
-    except Exception:
-        pass
-    return None
+    m = re.search(r"10\.48550/arxiv\.(\d{4}\.\d{4,5})(v\d+)?", doi)
+    if not m:
+        m = re.search(r"(?:arxiv[:/]|arxiv\.)(\d{4}\.\d{4,5})(v\d+)?", doi)
+    if not m:
+        return None
+    arxiv_id = m.group(1) + (m.group(2) or "")
+    return f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+
+
+def resolve_oa_pdf_url(doi: str, mailto: str = "kb-harvester@example.com") -> str | None:
+    """Unpaywall then OpenAlex OA URL, then arXiv DOI → PDF."""
+    from . import openalex_client
+    from .http_util import HttpRateLimited
+    from .openalex_client import _auth_params, _user_agent
+
+    doi = _normalize_doi(doi).lower()
+    # Unpaywall rejects example.com / placeholder emails
+    if mailto and not mailto.lower().endswith("@example.com"):
+        try:
+            data = get_json(f"https://api.unpaywall.org/v2/{doi}", {"email": mailto})
+            loc = data.get("best_oa_location") or {}
+            url = loc.get("url_for_pdf") or loc.get("url")
+            if url:
+                return url
+        except Exception:
+            pass
+    if not openalex_client.is_rate_limited():
+        try:
+            data = get_json(
+                "https://api.openalex.org/works",
+                {"filter": f"doi:{doi}", **_auth_params(mailto)},
+                user_agent=_user_agent(mailto),
+            )
+            results = data.get("results") or []
+            if results:
+                oa_url = (results[0].get("open_access") or {}).get("oa_url")
+                if oa_url:
+                    return oa_url
+        except HttpRateLimited as e:
+            openalex_client.mark_rate_limited(e)
+        except Exception:
+            pass
+    return arxiv_pdf_url_from_doi(doi)
 
 
 def search_paper_by_doi(doi: str) -> dict[str, Any]:
@@ -174,7 +197,8 @@ def search_paper_by_doi(doi: str) -> dict[str, Any]:
 
     oa = resolve_oa_pdf_url(doi)
     if oa:
-        return {**base, "pdf_url": oa, "status": "success", "source": "oa"}
+        source = "arxiv" if "arxiv.org/pdf/" in oa else "oa"
+        return {**base, "pdf_url": oa, "status": "success", "source": source}
 
     errors: list[str] = []
     with _client() as client:

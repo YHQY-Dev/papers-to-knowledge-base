@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from typing import Any
+from urllib.parse import quote
 
 from .http_util import get_json
 
@@ -92,8 +93,9 @@ def get_by_doi(
 ) -> dict[str, Any] | None:
     doi = doi.lower().replace("https://doi.org/", "")
     try:
+        # Crossref path segment must encode `/` in DOIs
         data = get_json(
-            f"{CROSSREF}/{doi}",
+            f"{CROSSREF}/{quote(doi, safe='')}",
             {"mailto": mailto},
             user_agent=f"Domain-KB-Harvester/0.1 (mailto:{mailto})",
         )
