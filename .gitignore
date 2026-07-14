@@ -4,10 +4,10 @@
 **/.venv/
 **/venv/
 **/.pytest_cache/
-**/uv.lock
 *.egg-info/
 .coverage
 htmlcov/
+# Commit uv.lock and .python-version; ignore only local envs above
 
 # OS / editor
 .DS_Store

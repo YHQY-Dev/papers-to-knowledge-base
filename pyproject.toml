@@ -1,0 +1,29 @@
+[project]
+name = "papers-to-knowledge-base"
+version = "0.1.0"
+description = "Agent Skills pack: literature library pipeline + knowledge site tooling"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+license = "MIT"
+dependencies = [
+    "papers-library-pipeline",
+    "papers-knowledge-site",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "skills/papers-library-pipeline/scripts",
+    "skills/papers-knowledge-site/scripts",
+]
+
+[tool.uv.sources]
+papers-library-pipeline = { workspace = true }
+papers-knowledge-site = { workspace = true }

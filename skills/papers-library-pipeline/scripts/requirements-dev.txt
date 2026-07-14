@@ -1,5 +1,0 @@
--r requirements.txt
-pytest>=8.0.0
-
-# From skills/papers-library-pipeline/scripts/:
-#   python -m pytest ../../../_dev/papers-library-pipeline -v
