@@ -54,23 +54,39 @@ When invoked from `papers-to-knowledge-base`, assume **Q0 + Phase 1–2** intake
 
 | Stage | Do |
 |-------|----|
-| 1 | `run_harvest`; **brainstorm-expanded** `search_themes`; prefer reviews/books; optional `seed_works.json`. Per theme×API → shard files under `{DOMAIN}-candidates/shards/`; **after all themes**, merge into `candidates.json` with **dedupe** (DOI → ISBN → title). Within each theme OpenAlex ∥ Crossref (separate shard files). If OpenAlex is rate/budget limited, skip it for the rest of the **UTC day** (`source-health.json`) and continue with Crossref only |
-
-### Harvest runtime (agents — mandatory)
-
-`run_harvest` is **slow** (network + polite sleeps per API batch). Before starting it:
-
-1. Count `n = len(search_themes)` in `domain_config.json`.
-2. Budget wall-clock **at least `n × 2` minutes** for that harvest command (e.g. 10 themes → **≥ 20 min**).
-3. Set the shell / tool timeout (or `block_until_ms`) to that budget **or higher** — do **not** use a default short timeout (30–120s) or the process will be killed mid-run.
-4. Themes write **shards** under `{DOMAIN}-candidates/shards/` (one file per theme×API); `candidates.json` is updated when all themes finish (then optional reference expand). Re-run keeps shards and re-integrates.
-
-Subagent theme shards: give **each** shard the same rule using **that shard’s** theme count × 2 min.
+| 1a | **Per theme (separate shell calls):** `run_harvest --theme "…"`. Writes shards only. Budget **≥ 2 min per theme** call. Within theme: OpenAlex ∥ Crossref → separate shard files |
+| 1b | After all themes: `run_harvest --integrate` → dedupe-merge shards into `candidates.json` |
+| 1c | **Refs (separate from harvest):** `expand_refs --next` or `--doi …` — **one paper per call**. Do not expand refs inside `run_harvest` |
 | 2 | **Hard gate — ask the user before any triage writes** (see below) |
 | 3 | `fetch-batch --selected-only --assign-ids` (honors `accepted` **or** `selected`); require `%PDF`. Sci-Hub: probe once, prefer last-known-good (also in `source-health.json`) |
 | 4 | `sync_manifest` (PDF-only by default; `--include-md` if MD already exists); `manual-needed.md` |
 | 5 | `export_excel` → `{DOMAIN}-catalog/literature.xlsx` |
 | 6 | [checklist.md](references/checklist.md) |
+
+### Harvest & refs — agent invocation (mandatory)
+
+**Never** run all themes + reference expand in one long process (it will be killed by timeouts). Your screenshot’s `harvest theme` then `refs from '10.3390/…'` in the same run is the wrong pattern.
+
+```text
+# optional once
+uv run python -m papers_library_pipeline.run_harvest --seeds-only
+
+# ONE theme per invocation (timeout ≥ 2 minutes each)
+uv run python -m papers_library_pipeline.run_harvest --theme "Ag2Se Seebeck coefficient"
+uv run python -m papers_library_pipeline.run_harvest --theme "beta-Ag2Se thermal properties"
+# … repeat for every search_themes entry …
+
+# after all themes
+uv run python -m papers_library_pipeline.run_harvest --integrate
+
+# ONE paper's refs per invocation (timeout ≥ 2 minutes each); repeat --next
+uv run python -m papers_library_pipeline.expand_refs --next
+uv run python -m papers_library_pipeline.expand_refs --doi 10.1016/j.mattod.2013.05.004
+```
+
+- Theme harvest and `expand_refs` are **different stages** — do not chain them in one command.
+- Prefer many short agent/shell turns over one mega-run.
+- OpenAlex UTC-day skip still applies (`source-health.json`).
 
 Rejected / backfill rows stay in Excel with reasons.
 
@@ -148,7 +164,10 @@ uv sync
 # Tokens: copy repo-root .env.example → .env and set OPENALEX_API_KEY=
 # https://openalex.org/settings/api
 export DOMAIN_KB_CONFIG=/path/to/domain_config.json
-uv run python -m papers_library_pipeline.run_harvest
+# one theme at a time, then integrate; refs separately
+uv run python -m papers_library_pipeline.run_harvest --theme "myfield review"
+uv run python -m papers_library_pipeline.run_harvest --integrate
+uv run python -m papers_library_pipeline.expand_refs --next
 uv run python -m papers_library_pipeline.pdf_fetch fetch-batch {ROOT}/{DOMAIN}-candidates/candidates.json \
   --pdf-dir {ROOT}/{DOMAIN}-pdf --manual {ROOT}/{DOMAIN}-catalog/manual-needed.md \
   --selected-only --assign-ids
@@ -161,7 +180,8 @@ Optional seeds: `scripts/seed_works.example.json` → `{DOMAIN}-candidates/seed_
 
 | Module | Use |
 |--------|-----|
-| `run_harvest` | Per theme: OpenAlex∥Crossref → separate shard files; after all themes, merge into `candidates.json`. Agent timeout ≥ `len(search_themes) × 2` minutes. OpenAlex UTC-day skip in `source-health.json` |
+| `run_harvest` | `--theme` (one theme → shards) / `--integrate` / `--seeds-only`. **Not** for refs. Timeout ≥ **2 min per `--theme`** |
+| `expand_refs` | `--next` or `--doi` — **one paper per call**; separate from harvest |
 | `pdf_fetch` | search/download PDF (`--assign-ids`); Sci-Hub probes once then prefers last-known-good mirror |
 | `source_health` | Read/write `{DOMAIN}-catalog/source-health.json` |
 | `sync_manifest` | Rebuild catalog from PDF disk (`--include-md` optional) |

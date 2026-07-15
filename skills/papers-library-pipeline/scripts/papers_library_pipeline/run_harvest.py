@@ -1,12 +1,14 @@
 ﻿#!/usr/bin/env python3
-"""Harvest works from OpenAlex + Crossref into {DOMAIN}-candidates/candidates.json.
+"""Harvest works from OpenAlex + Crossref into shard files / candidates.json.
 
-Each theme×API writes its own shard under {DOMAIN}-candidates/shards/
-(e.g. solid_electrolyte.ab12cd34.openalex.json). OpenAlex and Crossref for the
-same theme may run in parallel because they never share a file. After all themes
-finish, shards are merged once into candidates.json (seeds already there kept).
+Agent workflow (do NOT run everything in one process):
 
-Themes stay sequential to limit OpenAlex daily budget burn.
+1. Optional once:  `run_harvest --seeds-only`
+2. Per theme:      `run_harvest --theme "…"`   → writes shards only
+3. After themes:   `run_harvest --integrate`  → dedupe-merge shards → candidates.json
+4. Refs separately:`python -m papers_library_pipeline.expand_refs --next` (or --doi)
+
+Within one --theme, OpenAlex ∥ Crossref write separate shard files.
 """
 
 from __future__ import annotations
@@ -161,99 +163,92 @@ def harvest_theme(
     print(f"  [shard] theme complete {theme!r}", flush=True)
 
 
-def expand_references(
-    items: list[dict[str, Any]],
-    cfg: dict,
-    *,
-    path: Path,
-    next_id: int,
-) -> list[dict[str, Any]]:
-    """Expand OpenAlex referenced_works; save after each fetched work."""
-    if openalex_client.is_rate_limited():
-        print(
-            "[openalex] skip reference expand (rate-limited); candidates still from Crossref",
-            file=sys.stderr,
-        )
-        return items
-    mailto = cfg.get("mailto") or "kb-harvester@example.com"
-    top_n = int(cfg.get("reference_expand_top") or 15)
-    ranked = sorted(items, key=lambda r: -(r.get("script_score") or 0))
-    seen_ids: set[str] = set()
-    count = 0
-    for rec in ranked:
-        if openalex_client.is_rate_limited():
-            break
-        refs = rec.get("referenced_works") or []
-        if not refs:
-            continue
-        count += 1
-        if count > top_n:
-            break
-        for wid in refs[:40]:
-            if openalex_client.is_rate_limited():
-                break
-            if wid in seen_ids:
-                continue
-            seen_ids.add(wid)
-            got = openalex_client.get_work_by_id(wid, mailto=mailto)
-            if got:
-                got["script_score"] = script_score(got, cfg)
-                got["from_reference_of"] = rec.get("doi") or rec.get("title")
-                items = merge_and_save(path, items, [got], next_id=next_id)
-            time.sleep(0.35)
-        print(
-            f"  [checkpoint] refs from {rec.get('doi') or rec.get('title')!r} "
-            f"→ {len(items)} candidates",
-            flush=True,
-        )
-    return items
-
-
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--config", type=Path, default=None)
-    ap.add_argument("--skip-refs", action="store_true")
-    args = ap.parse_args()
-    cfg = load_config(args.config)
+def _setup(cfg_path: Path | None) -> tuple[dict[str, Any], Path, Path, int]:
+    cfg = load_config(cfg_path)
     ensure_dirs(cfg)
     source_health.configure(Path(cfg["_source_health"]))
     openalex_client.apply_persisted_skip()
-
     start = int(cfg.get("next_id_start") or 1000)
     cand_path = Path(cfg["_candidates"])
     shards_dir = shards_dir_for(cand_path)
     shards_dir.mkdir(parents=True, exist_ok=True)
+    return cfg, cand_path, shards_dir, start
 
-    doc = load_candidates_doc(cand_path, next_id_start=start)
+
+def cmd_seeds_only(cfg: dict, cand_path: Path, next_id: int) -> int:
+    doc = load_candidates_doc(cand_path, next_id_start=next_id)
     items = doc["items"]
-    next_id = int(doc.get("next_id") or start)
-
     seed_path = Path(cfg["_seed"])
-    if seed_path.exists():
-        seeds = json.loads(seed_path.read_text(encoding="utf-8"))
-        if isinstance(seeds, dict):
-            seeds = seeds.get("items") or seeds.get("seeds") or []
-        for i, s in enumerate(seeds, start=1):
-            items = merge_and_save(cand_path, items, [enrich_seed(s, cfg)], next_id=next_id)
-            print(f"  [checkpoint] seed {i}/{len(seeds)} → {len(items)} candidates", flush=True)
+    if not seed_path.exists():
+        print(f"no seed file at {seed_path}", file=sys.stderr)
+        return 1
+    seeds = json.loads(seed_path.read_text(encoding="utf-8"))
+    if isinstance(seeds, dict):
+        seeds = seeds.get("items") or seeds.get("seeds") or []
+    for i, s in enumerate(seeds, start=1):
+        items = merge_and_save(cand_path, items, [enrich_seed(s, cfg)], next_id=next_id)
+        print(f"  [checkpoint] seed {i}/{len(seeds)} → {len(items)} candidates", flush=True)
+    print(f"seeds done → {cand_path} ({len(items)} candidates)")
+    return 0
 
-    themes = list(cfg.get("search_themes") or [])
-    for theme in themes:
-        print(f"harvest theme: {theme}", flush=True)
-        harvest_theme(theme, cfg, shards_dir=shards_dir)
 
+def cmd_theme(cfg: dict, shards_dir: Path, theme: str) -> int:
+    known = list(cfg.get("search_themes") or [])
+    if known and theme not in known:
+        print(
+            f"[warn] theme not in domain_config search_themes: {theme!r}",
+            file=sys.stderr,
+        )
+    print(f"harvest theme: {theme}", flush=True)
+    harvest_theme(theme, cfg, shards_dir=shards_dir)
+    print("theme harvest done (shards only; run --integrate after all themes)")
+    return 0
+
+
+def cmd_integrate(cand_path: Path, next_id: int, start: int) -> int:
     print("integrating shards → candidates.json (dedupe) …", flush=True)
     items = integrate_shards(cand_path, next_id=next_id, next_id_start=start)
-    print(f"  [merge] {len(items)} candidates after deduped shard merge", flush=True)
-
-    if not args.skip_refs:
-        print("expand references…", flush=True)
-        items = expand_references(
-            items, cfg, path=cand_path, next_id=next_id
-        )
-
-    print(f"wrote {len(items)} candidates → {cand_path} (next_id={next_id})")
+    print(f"  [merge] {len(items)} candidates after deduped shard merge → {cand_path}")
     return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        description=(
+            "Harvest one theme into shards, or integrate shards. "
+            "Do not expand references here — use papers_library_pipeline.expand_refs."
+        )
+    )
+    ap.add_argument("--config", type=Path, default=None)
+    mode = ap.add_mutually_exclusive_group(required=True)
+    mode.add_argument(
+        "--theme",
+        type=str,
+        help="Harvest exactly one theme into shard files (OpenAlex∥Crossref)",
+    )
+    mode.add_argument(
+        "--integrate",
+        action="store_true",
+        help="Merge all shards into candidates.json (dedupe); no API search",
+    )
+    mode.add_argument(
+        "--seeds-only",
+        action="store_true",
+        help="Enrich seed_works.json into candidates.json once",
+    )
+    args = ap.parse_args()
+
+    cfg, cand_path, shards_dir, start = _setup(args.config)
+    doc = load_candidates_doc(cand_path, next_id_start=start)
+    next_id = int(doc.get("next_id") or start)
+
+    if args.seeds_only:
+        return cmd_seeds_only(cfg, cand_path, next_id)
+    if args.theme:
+        return cmd_theme(cfg, shards_dir, args.theme.strip())
+    if args.integrate:
+        return cmd_integrate(cand_path, next_id, start)
+    return 1
 
 
 if __name__ == "__main__":

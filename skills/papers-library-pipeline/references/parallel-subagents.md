@@ -34,8 +34,9 @@ Independent shards of **search** or **review/scoring** — not steps that share 
 - Output: JSON array of records (`title`, `doi`, `year`, `type`, `abstract` snippet, `script_score` if computed)
 - Do **not** download PDFs; do **not** assign `local_id`; do **not** edit Excel
 - If OpenAlex is skipped for the UTC day (`source-health.json`), use Crossref only
-- In-process harvest: OpenAlex ∥ Crossref per theme write **separate shard files** (no shared-file lock); parent merges shards after all themes
-- Give each harvest shell/subagent **≥ (theme count in that shard) × 2 minutes** wall time — see SKILL “Harvest runtime”
+- Theme harvest: **one `run_harvest --theme` per shell/subagent**; then parent runs `--integrate`
+- Refs: **one `expand_refs --next` (or `--doi`) per call** — never inside `run_harvest`
+- Give each harvest/expand shell **≥ ~2 minutes** wall time — see SKILL
 
 ### Review shard prompt (template)
 

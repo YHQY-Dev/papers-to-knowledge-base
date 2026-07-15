@@ -4,7 +4,7 @@ Fill `{DOMAIN}`, `{N}`.
 
 ## Library
 
-- [ ] `run_harvest` + `pdf_fetch` + `sync_manifest` + `export_excel` used
+- [ ] `run_harvest --theme` (per theme) + `--integrate` + `expand_refs` (per paper) + `pdf_fetch` + `sync_manifest` + `export_excel` used
 - [ ] `domain_config.json` set; optional `seed_works.json`
 - [ ] Candidates deduped; triage with `accepted` (or alias `selected`) + `local_id`
 - [ ] ≥ `{N}` items named `{id}.{title}.pdf` under `{DOMAIN}-pdf/`

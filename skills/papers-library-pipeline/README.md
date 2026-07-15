@@ -21,7 +21,7 @@ Compatible with **Cursor**, **Claude Code**, **Codex**, **OpenCode**, **Pi**, an
 **A-only dirs:** creates `*-pdf/`, `*-candidates/`, `*-catalog/` — not `*-md/` / `*-web/`.  
 **Source health:** `{DOMAIN}-catalog/source-health.json` stores OpenAlex UTC-day skip and last-good Sci-Hub mirror.  
 **Triage gate:** ask Full AI / Script-only / Hybrid before review writes (see `SKILL.md`).  
-**Harvest timeout:** agents must allow ≥ `len(search_themes) × 2` minutes for `run_harvest`.  
+**Harvest timeout:** one `--theme` or one `expand_refs` call per shell turn (≥ ~2 min each); do not run all themes+refs in one process.  
 **Unit tests** live outside this skill: [`../../_dev/papers-library-pipeline/`](../../_dev/papers-library-pipeline/).  
 **Parallel subagents** (when the host supports them): [references/parallel-subagents.md](references/parallel-subagents.md).
 
