@@ -1,7 +1,35 @@
 from pathlib import Path
 
 from papers_library_pipeline.manifest import sync_from_disk
-from papers_library_pipeline.paths import ensure_dirs
+from papers_library_pipeline.paths import ensure_dirs, load_config, resolve_root
+
+
+def test_resolve_root_defaults_to_cwd(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert resolve_root(None) == tmp_path.resolve()
+    assert resolve_root(".") == tmp_path.resolve()
+    assert resolve_root("") == tmp_path.resolve()
+    assert resolve_root("./") == tmp_path.resolve()
+
+
+def test_resolve_root_relative_against_cwd(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    sub = tmp_path / "out"
+    sub.mkdir()
+    assert resolve_root("out") == sub.resolve()
+
+
+def test_load_config_root_dot(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    cfg_path = tmp_path / "domain_config.json"
+    cfg_path.write_text(
+        '{"domain": "demo", "root": ".", "search_themes": []}',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("DOMAIN_KB_CONFIG", str(cfg_path))
+    cfg = load_config()
+    assert cfg["_root"] == tmp_path.resolve()
+    assert cfg["_pdf"] == tmp_path / "demo-pdf"
 
 
 def test_ensure_dirs_does_not_create_md_or_web(tmp_path: Path):

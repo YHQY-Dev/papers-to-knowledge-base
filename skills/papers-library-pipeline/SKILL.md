@@ -41,7 +41,7 @@ When invoked from `papers-to-knowledge-base`, assume **Q0 + Phase 1–2** intake
 | Var | Meaning | Example |
 |-----|---------|---------|
 | `{DOMAIN}` | slug | `battery` |
-| `{ROOT}` | asset root | `D:/work/battery-kb` |
+| `{ROOT}` | asset root | **default: current directory** (`"."`) |
 | `{N}` | target accepted PDF count | `100` |
 | `{THEMES}` | search themes | list |
 
@@ -175,7 +175,7 @@ uv run python -m papers_library_pipeline.sync_manifest
 uv run python -m papers_library_pipeline.export_excel
 ```
 
-Copy `scripts/domain_config.example.json` → `{ROOT}/domain_config.json`.  
+Copy `scripts/domain_config.example.json` → `{ROOT}/domain_config.json` (usually the **current project dir**; `"root": "."`).  
 Optional seeds: `scripts/seed_works.example.json` → `{DOMAIN}-candidates/seed_works.json`.
 
 | Module | Use |

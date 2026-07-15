@@ -82,7 +82,7 @@ Wiring details live with B (`papers-knowledge-site` references). Token: [AI Stud
 |-----|---------|
 | `{ROUTE}` | `A` \| `B` \| `A→B` |
 | `{DOMAIN}` | slug |
-| `{ROOT}` | asset root |
+| `{ROOT}` | asset root (**default: cwd** / `"."` in domain_config) |
 | `{N}` | target count (may be “existing” for B-only) |
 | `{THEMES}` / `{SCOPE_MODE}` | themes + narrow/broad |
 | `{LANG}` | site language (B / A→B only) |

@@ -94,11 +94,13 @@ Example:
 
 ### Q3 — Output root `{ROOT}`
 
-Absolute path for `domain_config.json`, `{DOMAIN}-pdf/`, catalog, specs, etc.
+**Default: current working directory** (the project folder the agent is opened in).
 
-Example:
+Ask only to confirm or override:
 
-> Where should assets live? Give an absolute root path `{ROOT}` (e.g. `D:/work/battery-kb`).
+> Assets default to the **current project directory** as `{ROOT}` (e.g. `./battery-pdf`, `./battery-catalog`). OK to use cwd, or give another absolute path?
+
+Bind `{ROOT}` = cwd (resolved absolute path) unless the user names another path. In `domain_config.json` set `"root": "."` (or omit / empty) for cwd.
 
 ### Q4 — Primary language `{LANG}`
 

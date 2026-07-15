@@ -31,7 +31,7 @@ Human docs: [README.md](README.md) · [README.zh-CN.md](README.zh-CN.md).
 | Accepted PDFs | `{DOMAIN}-pdf/{local_id}.{title}.pdf` |
 | Acceptance list | Excel (`literature.xlsx`) and/or manifest / candidates with accepted rows |
 | `{DOMAIN}` | slug |
-| `{ROOT}` | asset root |
+| `{ROOT}` | asset root (**default: current project dir**) |
 | `{LANG}` | primary site language |
 | OCR preference | PaddleOCR token configured? else MarkItDown only |
 

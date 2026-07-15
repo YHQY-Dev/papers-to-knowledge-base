@@ -1,6 +1,6 @@
 {
   "domain": "myfield",
-  "root": "D:/work/myfield-kb",
+  "root": ".",
   "mailto": "kb-harvester@example.com",
   "next_id_start": 1000,
   "per_theme_limit": 40,

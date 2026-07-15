@@ -23,11 +23,30 @@ def find_config_path(explicit: Path | None = None) -> Path:
     )
 
 
+def resolve_root(raw: Any, *, config_path: Path | None = None) -> Path:
+    """Asset root: default = current working directory.
+
+    - missing / null / \"\" / \".\" / \"./\" → Path.cwd()
+    - relative path → resolved against cwd
+    - absolute / ~ → expanduser().resolve()
+    """
+    if raw is None:
+        return Path.cwd().resolve()
+    s = str(raw).strip()
+    if not s or s in {".", "./"}:
+        return Path.cwd().resolve()
+    p = Path(s).expanduser()
+    if not p.is_absolute():
+        p = Path.cwd() / p
+    return p.resolve()
+
+
 def load_config(config_path: Path | None = None) -> dict[str, Any]:
     path = find_config_path(config_path)
     data = json.loads(path.read_text(encoding="utf-8"))
     data["_config_path"] = str(path.resolve())
-    root = Path(data["root"]).expanduser().resolve()
+    root = resolve_root(data.get("root"), config_path=path)
+    data["root"] = str(root)
     domain = data["domain"]
     data["_root"] = root
     data["_domain"] = domain
