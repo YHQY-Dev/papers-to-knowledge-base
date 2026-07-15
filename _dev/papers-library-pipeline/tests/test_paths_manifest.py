@@ -2,6 +2,7 @@ from pathlib import Path
 
 from papers_library_pipeline.manifest import sync_from_disk
 from papers_library_pipeline.paths import ensure_dirs, load_config, resolve_root
+from papers_library_pipeline.candidates import load_candidates_doc, save_candidates
 
 
 def test_resolve_root_defaults_to_cwd(tmp_path: Path, monkeypatch):
@@ -32,7 +33,12 @@ def test_load_config_root_dot(tmp_path: Path, monkeypatch):
     assert cfg["_pdf"] == tmp_path / "demo-pdf"
 
 
-def test_ensure_dirs_does_not_create_md_or_web(tmp_path: Path):
+def test_save_candidates_accepts_str_path(tmp_path: Path):
+    path = tmp_path / "candidates.json"
+    save_candidates(str(path), [{"doi": "10.1/a", "title": "A"}], next_id=1)
+    assert path.is_file()
+    doc = load_candidates_doc(str(path))
+    assert doc["count"] == 1
     cfg = {
         "_pdf": tmp_path / "d-pdf",
         "_md": tmp_path / "d-md",

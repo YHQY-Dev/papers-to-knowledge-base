@@ -44,7 +44,8 @@ def record_key(rec: dict[str, Any]) -> str:
     return f"title:{norm_title(rec.get('title'))}"
 
 
-def load_candidates_doc(path: Path, next_id_start: int = 1000) -> dict[str, Any]:
+def load_candidates_doc(path: Path | str, next_id_start: int = 1000) -> dict[str, Any]:
+    path = Path(path)
     if not path.exists():
         return {"next_id": next_id_start, "count": 0, "items": []}
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -58,16 +59,17 @@ def load_candidates_doc(path: Path, next_id_start: int = 1000) -> dict[str, Any]
     }
 
 
-def load_candidates(path: Path) -> list[dict[str, Any]]:
+def load_candidates(path: Path | str) -> list[dict[str, Any]]:
     return load_candidates_doc(path)["items"]
 
 
 def save_candidates(
-    path: Path,
+    path: Path | str,
     items: list[dict[str, Any]],
     next_id: int | None = None,
 ) -> None:
     """Write candidates.json atomically (temp file + replace)."""
+    path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, Any] = {"count": len(items), "items": items}
     if next_id is not None:
@@ -86,13 +88,14 @@ def save_candidates(
 
 
 def merge_and_save(
-    path: Path,
+    path: Path | str,
     existing: list[dict[str, Any]],
     new_items: list[dict[str, Any]],
     *,
     next_id: int | None = None,
 ) -> list[dict[str, Any]]:
     """Merge new records into existing, persist immediately, return merged list."""
+    path = Path(path)
     if not new_items:
         return existing
     merged = merge_records(existing, new_items)
@@ -101,13 +104,14 @@ def merge_and_save(
 
 
 def checkpoint_merge(
-    path: Path,
+    path: Path | str,
     new_items: list[dict[str, Any]],
     *,
     next_id: int | None = None,
     next_id_start: int = 1000,
 ) -> list[dict[str, Any]]:
     """Reload candidates from disk, merge `new_items`, save."""
+    path = Path(path)
     if not new_items:
         doc = load_candidates_doc(path, next_id_start=next_id_start)
         return doc["items"]
@@ -126,17 +130,17 @@ def theme_slug(theme: str) -> str:
     return f"{base}.{digest}"
 
 
-def shards_dir_for(candidates_path: Path) -> Path:
+def shards_dir_for(candidates_path: Path | str) -> Path:
     return Path(candidates_path).parent / "shards"
 
 
-def shard_path(shards_dir: Path, theme: str, api: str) -> Path:
+def shard_path(shards_dir: Path | str, theme: str, api: str) -> Path:
     api = api.strip().lower()
     return Path(shards_dir) / f"{theme_slug(theme)}.{api}.json"
 
 
 def write_shard(
-    shards_dir: Path,
+    shards_dir: Path | str,
     theme: str,
     api: str,
     items: list[dict[str, Any]],
@@ -162,7 +166,8 @@ def write_shard(
     return path
 
 
-def load_shard_items(path: Path) -> list[dict[str, Any]]:
+def load_shard_items(path: Path | str) -> list[dict[str, Any]]:
+    path = Path(path)
     if not path.exists():
         return []
     try:
@@ -174,7 +179,7 @@ def load_shard_items(path: Path) -> list[dict[str, Any]]:
     return list(data.get("items") or [])
 
 
-def collect_all_shard_items(shards_dir: Path) -> list[dict[str, Any]]:
+def collect_all_shard_items(shards_dir: Path | str) -> list[dict[str, Any]]:
     shards_dir = Path(shards_dir)
     if not shards_dir.is_dir():
         return []
@@ -187,7 +192,7 @@ def collect_all_shard_items(shards_dir: Path) -> list[dict[str, Any]]:
 
 
 def integrate_shards(
-    candidates_path: Path,
+    candidates_path: Path | str,
     *,
     next_id: int | None = None,
     next_id_start: int = 1000,
@@ -197,6 +202,7 @@ def integrate_shards(
     Keeps seeds / existing rows. Dedupe key: DOI → ISBN → normalized title
     (see `merge_records` / `record_key`).
     """
+    candidates_path = Path(candidates_path)
     shards = shards_dir_for(candidates_path)
     doc = load_candidates_doc(candidates_path, next_id_start=next_id_start)
     base = doc["items"]
