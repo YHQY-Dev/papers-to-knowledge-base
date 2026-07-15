@@ -2,6 +2,14 @@
 
 Use **only if the host can run subagents** (e.g. Cursor Task / Claude Code Task). If not, stay single-threaded.
 
+## Triage mode first
+
+Before any review shards: the parent must ask the user for **Full AI / Script-only / Hybrid** (see SKILL Stage 2 gate).
+
+- **Script-only:** no AI shards — parent (or one agent) applies `script_score` thresholds only.
+- **Full AI / Hybrid:** warn that AI review is **slow and token-heavy**; recommend **3–8 parallel** review shards when the candidate list is large.
+- Do **not** launch AI review subagents until the user has chosen a mode that needs them.
+
 ## When to parallelize
 
 Independent shards of **search** or **review/scoring** — not steps that share a write lock.
@@ -25,10 +33,11 @@ Independent shards of **search** or **review/scoring** — not steps that share 
 - Tools: OpenAlex/Crossref via `papers_library_pipeline` or equivalent HTTP
 - Output: JSON array of records (`title`, `doi`, `year`, `type`, `abstract` snippet, `script_score` if computed)
 - Do **not** download PDFs; do **not** assign `local_id`; do **not** edit Excel
+- If OpenAlex is skipped for the UTC day (`source-health.json`), use Crossref only
 
 ### Review shard prompt (template)
 
-- Input: candidate slice (ids or DOI list) + acceptance criteria / `{THEMES}`
+- Input: candidate slice (ids or DOI list) + acceptance criteria / `{THEMES}` + **triage mode** (full AI or hybrid band)
 - Output: per item `ai_score`, `accepted`/`selected`, `decision`, `reason` (and optional note path under `ai-reviews/`)
 - Do **not** run `fetch-batch`; do **not** renumber `local_id`
 

@@ -19,6 +19,8 @@
 **录用标记：** 优先写 `accepted`，`selected` 为别名；`--selected-only` 二者任一为真即可。  
 **PDF 命名：** 仅 `{编号}.{标题}.pdf`（如 `1001.Guinier_approximation.pdf`）。  
 **仅 A 目录：** 创建 `*-pdf/`、`*-candidates/`、`*-catalog/`，**不**创建 `*-md/` / `*-web/`。  
+**源健康：** `{DOMAIN}-catalog/source-health.json` 记住 OpenAlex 当日跳过与上次可用的 Sci-Hub 镜像。  
+**审阅门闸：** 进入精评前须问用户选 Full AI / 纯脚本 / 混合（见 `SKILL.md`）。  
 **单元测试**不在本 skill 内：[`../../_dev/papers-library-pipeline/`](../../_dev/papers-library-pipeline/)。  
 **并行 subagent**（宿主支持时）：[references/parallel-subagents.md](references/parallel-subagents.md)。
 

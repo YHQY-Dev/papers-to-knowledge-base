@@ -48,24 +48,40 @@ When invoked from `papers-to-knowledge-base`, assume **Q0 + Phase 1–2** intake
 ## Pipeline
 
 ```text
-1 Harvest → 2 Script + AI triage → 3 pdf_fetch --assign-ids
+1 Harvest → 2 Triage (ask mode first) → 3 pdf_fetch --assign-ids
 → 4 sync_manifest → 5 export_excel → Checklist
 ```
 
 | Stage | Do |
 |-------|----|
-| 1 | `run_harvest`; prefer reviews/books; optional `seed_works.json` |
-| 2 | AI vs scope; set `accepted` (or alias `selected`) + scores/reasons |
-| 3 | `fetch-batch --selected-only --assign-ids` (honors `accepted` **or** `selected`); require `%PDF` |
+| 1 | `run_harvest`; prefer reviews/books; optional `seed_works.json`. If OpenAlex is rate/budget limited, skip it for the rest of the **UTC day** (persisted in `source-health.json`) and continue with Crossref only |
+| 2 | **Hard gate — ask the user before any triage writes** (see below) |
+| 3 | `fetch-batch --selected-only --assign-ids` (honors `accepted` **or** `selected`); require `%PDF`. Sci-Hub: probe once, prefer last-known-good (also in `source-health.json`) |
 | 4 | `sync_manifest` (PDF-only by default; `--include-md` if MD already exists); `manual-needed.md` |
 | 5 | `export_excel` → `{DOMAIN}-catalog/literature.xlsx` |
 | 6 | [checklist.md](references/checklist.md) |
 
 Rejected / backfill rows stay in Excel with reasons.
 
+### Stage 2 triage gate (required)
+
+**Do not** start writing `accepted` / `ai_score` / `reason` until the user chooses a mode. Present these options and the cost trade-offs:
+
+| Mode | Behavior | Tell the user |
+|------|----------|---------------|
+| **Full AI** | Read title/abstract (optional short notes) per paper; set `ai_score`, `accepted`, `reason` | **Slower** and **token-heavy**. Prefer **3–8 parallel subagents** on disjoint candidate slices when the host supports it (see [parallel-subagents.md](references/parallel-subagents.md)) |
+| **Script-only** | Use `script_score` + config thresholds (`ai_download_threshold` / `ai_backfill_threshold` as hints) → `accepted` / backfill / reject | Fast, **no LLM tokens**; may miss or over-accept |
+| **Hybrid** | Script coarse filter; AI only for scores in the mid band (between backfill and download thresholds) | Medium cost; good default for large candidate sets |
+
+Recommendation to user: hybrid for large sets; script-only for dry runs; full AI when quality outweighs cost/latency.
+
+After the user answers, run that mode only. If they pick Full AI or Hybrid and subagents are available, offer parallel shards.
+
 ## Parallel subagents (when available)
 
 If the host can dispatch **subagents**, use **multiple in parallel** for independent stage-A work — especially harvest shards and review/scoring batches. Details: [references/parallel-subagents.md](references/parallel-subagents.md).
+
+**Before AI review:** complete the Stage 2 triage gate (ask Full AI / Script-only / Hybrid). For Full AI / Hybrid, warn about latency and token cost, then prefer parallel shards.
 
 **Do parallelize:** theme/query shards; disjoint candidate slices for AI triage (`ai_score`, `accepted`, `reason`).  
 **Do not parallelize without a single merger:** writing `candidates.json`, assigning `local_id`, `fetch-batch`, final `export_excel`.
@@ -101,6 +117,7 @@ If subagents are unavailable, run the pipeline sequentially (same stages).
   {DOMAIN}-pdf/{local_id}.{title}.pdf   # e.g. 1001. Guinier_approximation.pdf
   {DOMAIN}-catalog/
     manifest.json
+    source-health.json   # OpenAlex UTC-day skip + Sci-Hub preferred mirror
     ai-reviews/
     manual-needed.md
     literature.xlsx
@@ -130,13 +147,14 @@ Optional seeds: `scripts/seed_works.example.json` → `{DOMAIN}-candidates/seed_
 
 | Module | Use |
 |--------|-----|
-| `run_harvest` | OpenAlex+Crossref → candidates; if OpenAlex daily budget is exhausted, skip OpenAlex and continue with Crossref only |
-| `pdf_fetch` | search/download PDF (`--assign-ids`) |
+| `run_harvest` | OpenAlex+Crossref → candidates; **checkpoint after each API batch**; OpenAlex skip persists to UTC day end in `source-health.json`, then Crossref-only |
+| `pdf_fetch` | search/download PDF (`--assign-ids`); Sci-Hub probes once then prefers last-known-good mirror |
+| `source_health` | Read/write `{DOMAIN}-catalog/source-health.json` |
 | `sync_manifest` | Rebuild catalog from PDF disk (`--include-md` optional) |
 | `export_excel` | Write `literature.xlsx` |
 
-`pdf_fetch` order: OA → mirrors → manual.  
-`ai_*_threshold` in config are **AI triage hints**, not enforced by scripts.
+`pdf_fetch` order: OA → preferred Sci-Hub mirror (then other mirrors) → manual.  
+`ai_*_threshold` in config are **triage hints** (script-only / hybrid), not enforced by download scripts.
 
 ## Anti-patterns
 
@@ -144,4 +162,5 @@ Optional seeds: `scripts/seed_works.example.json` → `{DOMAIN}-candidates/seed_
 - Building `{DOMAIN}-web/` here
 - Downloading without `local_id`
 - Skipping Excel export before handoff to B
+- Starting Stage 2 triage writes without asking Full AI / Script-only / Hybrid
 - Rewriting OpenAlex/Crossref/`pdf_fetch` clients without need
