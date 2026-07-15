@@ -19,14 +19,14 @@ from .http_util import get_json
 logger = logging.getLogger(__name__)
 
 PAPER_SOURCES = [
+    "https://sci-hub.ru",
+    "https://sci-hub.st",
+    "https://sci-hub.su",
+    "https://sci-hub.box",
+    "https://sci-hub.red",
     "https://sci-hub.al",
     "https://sci-hub.mk",
     "https://sci-hub.ee",
-    "https://sci-hub.vg",
-    "https://sci-hub.st",
-    "https://sci-hub.ru",
-    "https://sci-hub.box",
-    "https://sci-hub.red",
 ]
 
 # Session cache: probe once per process; prefer last-known-good mirror.
