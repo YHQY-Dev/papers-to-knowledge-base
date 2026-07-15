@@ -29,7 +29,13 @@ PAPER_SOURCES = [
     "https://sci-hub.red",
 ]
 
+# Session cache: probe once per process; prefer last-known-good mirror.
+_session_preferred: str | None = None
+_session_ordered_sources: list[str] | None = None
+_session_probed: bool = False
+
 DEFAULT_TIMEOUT = httpx.Timeout(20.0, connect=8.0)
+PROBE_TIMEOUT = httpx.Timeout(5.0, connect=3.0)
 DEFAULT_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -38,6 +44,106 @@ DEFAULT_HEADERS = {
     ),
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
+
+
+def reset_mirror_session_state() -> None:
+    """Test helper: clear Sci-Hub session cache."""
+    global _session_preferred, _session_ordered_sources, _session_probed
+    _session_preferred = None
+    _session_ordered_sources = None
+    _session_probed = False
+
+
+def _normalize_mirror(url: str) -> str:
+    return url.rstrip("/")
+
+
+def _order_sources(preferred: str | None, sources: list[str] | None = None) -> list[str]:
+    base = [_normalize_mirror(s) for s in (sources or PAPER_SOURCES)]
+    if not preferred:
+        return base
+    pref = _normalize_mirror(preferred)
+    rest = [s for s in base if s != pref]
+    if pref in base:
+        return [pref] + rest
+    return [pref] + rest
+
+
+def probe_mirror(url: str, client: httpx.Client | None = None) -> bool:
+    """Cheap liveness check: HTTP < 400 and non-empty body."""
+    url = _normalize_mirror(url)
+    own = client is None
+    if own:
+        client = httpx.Client(
+            timeout=PROBE_TIMEOUT,
+            headers=DEFAULT_HEADERS,
+            follow_redirects=True,
+            verify=False,
+        )
+    try:
+        resp = client.get(url + "/")
+        if resp.status_code >= 400:
+            return False
+        return bool(resp.content)
+    except Exception:
+        return False
+    finally:
+        if own:
+            client.close()
+
+
+def remember_scihub_preferred(url: str) -> None:
+    """Update session + persisted preferred mirror."""
+    global _session_preferred
+    from . import source_health
+
+    url = _normalize_mirror(url)
+    _session_preferred = url
+    source_health.set_scihub_preferred(url)
+
+
+def ensure_mirror_order(*, force_probe: bool = False) -> list[str]:
+    """Return ordered Sci-Hub mirrors for this process (probe at most once)."""
+    global _session_preferred, _session_ordered_sources, _session_probed
+    from . import source_health
+
+    if _session_ordered_sources is not None and not force_probe:
+        return list(_session_ordered_sources)
+
+    preferred = _session_preferred or source_health.get_scihub_preferred()
+    ordered = _order_sources(preferred)
+
+    if not force_probe and _session_probed and _session_ordered_sources is not None:
+        return list(_session_ordered_sources)
+
+    with httpx.Client(
+        timeout=PROBE_TIMEOUT,
+        headers=DEFAULT_HEADERS,
+        follow_redirects=True,
+        verify=False,
+    ) as client:
+        if preferred and probe_mirror(preferred, client):
+            _session_preferred = _normalize_mirror(preferred)
+            _session_ordered_sources = _order_sources(_session_preferred)
+            _session_probed = True
+            remember_scihub_preferred(_session_preferred)
+            return list(_session_ordered_sources)
+
+        for src in ordered:
+            if preferred and _normalize_mirror(src) == _normalize_mirror(preferred):
+                continue
+            if probe_mirror(src, client):
+                _session_preferred = _normalize_mirror(src)
+                _session_ordered_sources = _order_sources(_session_preferred)
+                _session_probed = True
+                remember_scihub_preferred(_session_preferred)
+                logger.info("Sci-Hub preferred mirror: %s", _session_preferred)
+                return list(_session_ordered_sources)
+
+    # None alive at probe time — still try full list on demand without claiming preferred
+    _session_ordered_sources = ordered
+    _session_probed = True
+    return list(_session_ordered_sources)
 
 
 def _client(*, verify: bool = False) -> httpx.Client:
@@ -201,8 +307,9 @@ def search_paper_by_doi(doi: str) -> dict[str, Any]:
         return {**base, "pdf_url": oa, "status": "success", "source": source}
 
     errors: list[str] = []
+    mirrors = ensure_mirror_order()
     with _client() as client:
-        for i, source in enumerate(PAPER_SOURCES, start=1):
+        for i, source in enumerate(mirrors, start=1):
             page_url = f"{source.rstrip('/')}/{doi}"
             try:
                 resp = client.get(page_url)
@@ -211,19 +318,21 @@ def search_paper_by_doi(doi: str) -> dict[str, Any]:
                     continue
                 content_type = (resp.headers.get("content-type") or "").lower()
                 if "pdf" in content_type or resp.content[:4] == b"%PDF":
+                    remember_scihub_preferred(source)
                     return {
                         **base,
                         "pdf_url": str(resp.url),
                         "status": "success",
-                        "source": f"mirror#{i}",
+                        "source": f"mirror:{_normalize_mirror(source)}",
                     }
                 pdf_url = _extract_pdf_url(resp.text, str(resp.url))
                 if pdf_url:
+                    remember_scihub_preferred(source)
                     return {
                         **base,
                         "pdf_url": pdf_url,
                         "status": "success",
-                        "source": f"mirror#{i}",
+                        "source": f"mirror:{_normalize_mirror(source)}",
                     }
                 errors.append(f"source#{i}: no PDF on page")
             except Exception as exc:
@@ -383,10 +492,12 @@ def fetch_selected(
     """Download PDFs for records that have doi (+ local_id preferred).
 
     On-disk name: `{local_id}.{title}.pdf` (see `pdf_names.pdf_basename`).
+    Probes Sci-Hub mirrors once, then reuses the preferred mirror for the batch.
     """
     from .pdf_names import find_pdf_for_id, pdf_basename
 
     pdf_dir.mkdir(parents=True, exist_ok=True)
+    ensure_mirror_order()
     results: list[dict[str, Any]] = []
     for rec in items:
         doi = rec.get("doi")
@@ -491,6 +602,15 @@ def main(argv: list[str] | None = None) -> int:
             load_candidates_doc,
             save_candidates,
         )
+        from . import openalex_client, source_health
+        from .paths import load_config
+
+        try:
+            cfg = load_config()
+            source_health.configure(Path(cfg["_source_health"]))
+            openalex_client.apply_persisted_skip()
+        except FileNotFoundError:
+            pass
 
         doc = load_candidates_doc(args.candidates)
         items = list(doc["items"])

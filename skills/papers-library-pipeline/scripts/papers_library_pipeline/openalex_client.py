@@ -7,6 +7,7 @@ from typing import Any
 
 from .env_load import load_repo_env
 from .http_util import HttpRateLimited, get_json
+from . import source_health
 
 load_repo_env()
 
@@ -24,17 +25,42 @@ def rate_limited_reason() -> str | None:
     return _rate_limited_reason
 
 
-def mark_rate_limited(reason: str | BaseException) -> None:
-    """Disable OpenAlex for the rest of this process (quota exhausted)."""
+def mark_rate_limited(reason: str | BaseException, *, persist: bool = True) -> None:
+    """Disable OpenAlex for the rest of this process (quota exhausted).
+
+    When `persist` and source_health is configured, also skip OpenAlex until
+    end of the current UTC day for subsequent runs.
+    """
     global _rate_limited_reason
-    if _rate_limited_reason is not None:
-        return
-    _rate_limited_reason = str(reason)
-    print(
-        f"[openalex] rate/budget limited — skipping OpenAlex for this run; "
-        f"using Crossref instead. ({_rate_limited_reason})",
-        file=sys.stderr,
-    )
+    reason_s = str(reason)
+    if _rate_limited_reason is None:
+        _rate_limited_reason = reason_s
+        print(
+            f"[openalex] rate/budget limited — skipping OpenAlex for this run; "
+            f"using Crossref instead. ({_rate_limited_reason})",
+            file=sys.stderr,
+        )
+    if persist and source_health.configured_path() is not None:
+        source_health.mark_openalex_skip_for_utc_day(reason_s)
+
+
+def apply_persisted_skip() -> bool:
+    """Load source-health skip; if still active for UTC today, set process flag.
+
+    Returns True if OpenAlex is skipped. Does not extend the deadline.
+    """
+    global _rate_limited_reason
+    source_health.clear_expired_openalex_skip()
+    reason = source_health.openalex_skip_active()
+    if reason is None:
+        return False
+    if _rate_limited_reason is None:
+        _rate_limited_reason = reason
+        print(
+            f"[openalex] skipped (persisted until UTC day end): {reason}",
+            file=sys.stderr,
+        )
+    return True
 
 
 def reset_rate_limit_state() -> None:

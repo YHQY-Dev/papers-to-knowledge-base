@@ -1,5 +1,9 @@
 ﻿#!/usr/bin/env python3
-"""Harvest works from OpenAlex + Crossref into {DOMAIN}-candidates/candidates.json."""
+"""Harvest works from OpenAlex + Crossref into {DOMAIN}-candidates/candidates.json.
+
+Writes candidates.json after each seed / API batch / reference fetch so an
+interrupted run keeps everything found so far.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +12,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 # Allow: python -m papers_library_pipeline.run_harvest  OR  python run_harvest.py
 _PKG = Path(__file__).resolve().parents[1]
@@ -17,11 +22,11 @@ if str(_PKG) not in sys.path:
 from papers_library_pipeline import crossref_client, openalex_client
 from papers_library_pipeline.candidates import (
     load_candidates_doc,
-    merge_records,
-    save_candidates,
+    merge_and_save,
 )
 from papers_library_pipeline.paths import ensure_dirs, load_config
 from papers_library_pipeline.score import script_score
+from papers_library_pipeline import source_health
 
 
 def enrich_seed(seed: dict, cfg: dict) -> dict:
@@ -62,50 +67,81 @@ def enrich_seed(seed: dict, cfg: dict) -> dict:
     return rec
 
 
-def harvest_theme(theme: str, cfg: dict) -> list[dict]:
+def _tag_theme(recs: list[dict[str, Any]], theme: str, cfg: dict) -> list[dict[str, Any]]:
+    for rec in recs:
+        rec["script_score"] = script_score(rec, cfg)
+        rec["harvest_theme"] = theme
+    return recs
+
+
+def harvest_theme(
+    theme: str,
+    cfg: dict,
+    *,
+    path: Path,
+    items: list[dict[str, Any]],
+    next_id: int,
+) -> list[dict[str, Any]]:
+    """Search one theme; checkpoint candidates.json after each API batch."""
     mailto = cfg.get("mailto") or "kb-harvester@example.com"
     limit = int(cfg.get("per_theme_limit") or 40)
-    items: list[dict] = []
-    # OpenAlex first; on daily budget exhaustion, skip for the rest of this run.
+
     for typ in ("review", "book", None):
         if openalex_client.is_rate_limited():
             break
         try:
-            items.extend(
-                openalex_client.search_works(theme, per_page=limit, typ=typ, mailto=mailto)
+            batch = openalex_client.search_works(
+                theme, per_page=limit, typ=typ, mailto=mailto
+            )
+            items = merge_and_save(
+                path, items, _tag_theme(batch, theme, cfg), next_id=next_id
+            )
+            print(
+                f"  [checkpoint] openalex typ={typ!r} → {len(items)} candidates",
+                flush=True,
             )
         except Exception as e:
             print(f"[openalex] theme={theme!r} typ={typ}: {e}", file=sys.stderr)
         if openalex_client.is_rate_limited():
             break
         time.sleep(1.0)
-    # Crossref always runs (sole source when OpenAlex is rate-limited).
+
     for typ in ("book", None):
         try:
-            items.extend(
-                crossref_client.search_works(theme, rows=limit, typ=typ, mailto=mailto)
+            batch = crossref_client.search_works(
+                theme, rows=limit, typ=typ, mailto=mailto
+            )
+            items = merge_and_save(
+                path, items, _tag_theme(batch, theme, cfg), next_id=next_id
+            )
+            print(
+                f"  [checkpoint] crossref typ={typ!r} → {len(items)} candidates",
+                flush=True,
             )
         except Exception as e:
             print(f"[crossref] theme={theme!r} typ={typ}: {e}", file=sys.stderr)
         time.sleep(1.2)
-    for rec in items:
-        rec["script_score"] = script_score(rec, cfg)
-        rec["harvest_theme"] = theme
+
     return items
 
 
-def expand_references(items: list[dict], cfg: dict) -> list[dict]:
-    """Expand OpenAlex referenced_works. No-op if OpenAlex is rate-limited."""
+def expand_references(
+    items: list[dict[str, Any]],
+    cfg: dict,
+    *,
+    path: Path,
+    next_id: int,
+) -> list[dict[str, Any]]:
+    """Expand OpenAlex referenced_works; save after each fetched work."""
     if openalex_client.is_rate_limited():
         print(
             "[openalex] skip reference expand (rate-limited); candidates still from Crossref",
             file=sys.stderr,
         )
-        return []
+        return items
     mailto = cfg.get("mailto") or "kb-harvester@example.com"
     top_n = int(cfg.get("reference_expand_top") or 15)
     ranked = sorted(items, key=lambda r: -(r.get("script_score") or 0))
-    expanded: list[dict] = []
     seen_ids: set[str] = set()
     count = 0
     for rec in ranked:
@@ -127,9 +163,14 @@ def expand_references(items: list[dict], cfg: dict) -> list[dict]:
             if got:
                 got["script_score"] = script_score(got, cfg)
                 got["from_reference_of"] = rec.get("doi") or rec.get("title")
-                expanded.append(got)
+                items = merge_and_save(path, items, [got], next_id=next_id)
             time.sleep(0.35)
-    return expanded
+        print(
+            f"  [checkpoint] refs from {rec.get('doi') or rec.get('title')!r} "
+            f"→ {len(items)} candidates",
+            flush=True,
+        )
+    return items
 
 
 def main() -> int:
@@ -139,32 +180,37 @@ def main() -> int:
     args = ap.parse_args()
     cfg = load_config(args.config)
     ensure_dirs(cfg)
+    source_health.configure(Path(cfg["_source_health"]))
+    openalex_client.apply_persisted_skip()
 
     start = int(cfg.get("next_id_start") or 1000)
-    doc = load_candidates_doc(cfg["_candidates"], next_id_start=start)
-    existing = doc["items"]
+    cand_path = Path(cfg["_candidates"])
+    doc = load_candidates_doc(cand_path, next_id_start=start)
+    items = doc["items"]
     next_id = int(doc.get("next_id") or start)
-    batch: list[dict] = []
 
     seed_path = Path(cfg["_seed"])
     if seed_path.exists():
         seeds = json.loads(seed_path.read_text(encoding="utf-8"))
         if isinstance(seeds, dict):
             seeds = seeds.get("items") or seeds.get("seeds") or []
-        for s in seeds:
-            batch.append(enrich_seed(s, cfg))
+        for i, s in enumerate(seeds, start=1):
+            items = merge_and_save(cand_path, items, [enrich_seed(s, cfg)], next_id=next_id)
+            print(f"  [checkpoint] seed {i}/{len(seeds)} → {len(items)} candidates", flush=True)
 
     for theme in cfg.get("search_themes") or []:
-        print(f"harvest theme: {theme}")
-        batch.extend(harvest_theme(theme, cfg))
+        print(f"harvest theme: {theme}", flush=True)
+        items = harvest_theme(
+            theme, cfg, path=cand_path, items=items, next_id=next_id
+        )
 
-    merged = merge_records(existing, batch)
     if not args.skip_refs:
-        print("expand references…")
-        merged = merge_records(merged, expand_references(merged, cfg))
+        print("expand references…", flush=True)
+        items = expand_references(
+            items, cfg, path=cand_path, next_id=next_id
+        )
 
-    save_candidates(cfg["_candidates"], merged, next_id=next_id)
-    print(f"wrote {len(merged)} candidates → {cfg['_candidates']} (next_id={next_id})")
+    print(f"wrote {len(items)} candidates → {cand_path} (next_id={next_id})")
     return 0
 
 

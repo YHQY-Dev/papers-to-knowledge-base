@@ -66,6 +66,7 @@ def save_candidates(
     items: list[dict[str, Any]],
     next_id: int | None = None,
 ) -> None:
+    """Write candidates.json atomically (temp file + replace)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, Any] = {"count": len(items), "items": items}
     if next_id is not None:
@@ -77,7 +78,25 @@ def save_candidates(
                 payload["next_id"] = int(old["next_id"])
         except Exception:
             pass
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(path)
+
+
+def merge_and_save(
+    path: Path,
+    existing: list[dict[str, Any]],
+    new_items: list[dict[str, Any]],
+    *,
+    next_id: int | None = None,
+) -> list[dict[str, Any]]:
+    """Merge new records into existing, persist immediately, return merged list."""
+    if not new_items:
+        return existing
+    merged = merge_records(existing, new_items)
+    save_candidates(path, merged, next_id=next_id)
+    return merged
 
 
 def assign_local_ids(

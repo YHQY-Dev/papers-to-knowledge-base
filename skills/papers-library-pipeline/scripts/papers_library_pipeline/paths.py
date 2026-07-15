@@ -37,6 +37,7 @@ def load_config(config_path: Path | None = None) -> dict[str, Any]:
     data["_candidates_dir"] = root / f"{domain}-candidates"
     data["_candidates"] = data["_candidates_dir"] / "candidates.json"
     data["_manifest"] = data["_catalog"] / "manifest.json"
+    data["_source_health"] = data["_catalog"] / "source-health.json"
     data["_ai_reviews"] = data["_catalog"] / "ai-reviews"
     data["_citation_extracts"] = data["_catalog"] / "citation-extracts"
     data["_manual_needed"] = data["_catalog"] / "manual-needed.md"
