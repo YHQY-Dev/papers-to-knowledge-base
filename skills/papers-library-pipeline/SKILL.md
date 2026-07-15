@@ -54,7 +54,18 @@ When invoked from `papers-to-knowledge-base`, assume **Q0 + Phase 1–2** intake
 
 | Stage | Do |
 |-------|----|
-| 1 | `run_harvest`; prefer reviews/books; optional `seed_works.json`. If OpenAlex is rate/budget limited, skip it for the rest of the **UTC day** (persisted in `source-health.json`) and continue with Crossref only |
+| 1 | `run_harvest`; **brainstorm-expanded** `search_themes`; prefer reviews/books; optional `seed_works.json`. Per theme×API → shard files under `{DOMAIN}-candidates/shards/`; **after all themes**, merge into `candidates.json` with **dedupe** (DOI → ISBN → title). Within each theme OpenAlex ∥ Crossref (separate shard files). If OpenAlex is rate/budget limited, skip it for the rest of the **UTC day** (`source-health.json`) and continue with Crossref only |
+
+### Harvest runtime (agents — mandatory)
+
+`run_harvest` is **slow** (network + polite sleeps per API batch). Before starting it:
+
+1. Count `n = len(search_themes)` in `domain_config.json`.
+2. Budget wall-clock **at least `n × 2` minutes** for that harvest command (e.g. 10 themes → **≥ 20 min**).
+3. Set the shell / tool timeout (or `block_until_ms`) to that budget **or higher** — do **not** use a default short timeout (30–120s) or the process will be killed mid-run.
+4. Themes write **shards** under `{DOMAIN}-candidates/shards/` (one file per theme×API); `candidates.json` is updated when all themes finish (then optional reference expand). Re-run keeps shards and re-integrates.
+
+Subagent theme shards: give **each** shard the same rule using **that shard’s** theme count × 2 min.
 | 2 | **Hard gate — ask the user before any triage writes** (see below) |
 | 3 | `fetch-batch --selected-only --assign-ids` (honors `accepted` **or** `selected`); require `%PDF`. Sci-Hub: probe once, prefer last-known-good (also in `source-health.json`) |
 | 4 | `sync_manifest` (PDF-only by default; `--include-md` if MD already exists); `manual-needed.md` |
@@ -113,7 +124,10 @@ If subagents are unavailable, run the pipeline sequentially (same stages).
 ```text
 {ROOT}/
   domain_config.json
-  {DOMAIN}-candidates/candidates.json
+  {DOMAIN}-candidates/
+    candidates.json
+    shards/                 # harvest theme×api temps; merged when harvest finishes
+    seed_works.json         # optional
   {DOMAIN}-pdf/{local_id}.{title}.pdf   # e.g. 1001. Guinier_approximation.pdf
   {DOMAIN}-catalog/
     manifest.json
@@ -147,7 +161,7 @@ Optional seeds: `scripts/seed_works.example.json` → `{DOMAIN}-candidates/seed_
 
 | Module | Use |
 |--------|-----|
-| `run_harvest` | OpenAlex+Crossref → candidates; **checkpoint after each API batch**; OpenAlex skip persists to UTC day end in `source-health.json`, then Crossref-only |
+| `run_harvest` | Per theme: OpenAlex∥Crossref → separate shard files; after all themes, merge into `candidates.json`. Agent timeout ≥ `len(search_themes) × 2` minutes. OpenAlex UTC-day skip in `source-health.json` |
 | `pdf_fetch` | search/download PDF (`--assign-ids`); Sci-Hub probes once then prefers last-known-good mirror |
 | `source_health` | Read/write `{DOMAIN}-catalog/source-health.json` |
 | `sync_manifest` | Rebuild catalog from PDF disk (`--include-md` optional) |

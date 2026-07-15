@@ -9,7 +9,11 @@
   "ai_backfill_threshold": 60,
   "search_themes": [
     "myfield review",
-    "myfield theory method"
+    "myfield survey state of the art",
+    "myfield theory mechanism",
+    "myfield characterization method",
+    "myfield interface phenomenon",
+    "related-subfield application in myfield"
   ],
   "positive_keywords": [
     "myfield",

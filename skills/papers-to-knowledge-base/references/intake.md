@@ -49,12 +49,38 @@ Bind:
 | Var | Meaning |
 |-----|---------|
 | `{SCOPE_MODE}` | `narrow` \| `broad` |
-| `{THEMES}` | search / curriculum themes (list) |
+| `{THEMES}` | search / curriculum themes (list) — **expanded**, not a single stub phrase |
 | `{DOMAIN}` | filesystem slug (e.g. `battery`) |
 
 Example:
 
 > Is this a **narrow specialty** or a **broad survey**? Give the exact topic wording and a short slug for folders (e.g. `solid-electrolyte`).
+
+#### Expand `{THEMES}` (brainstorm — required for A / A→B)
+
+Do **not** write `search_themes` as one or two literal user phrases. After the user states the topic, **brainstorm and expand** into a diversified query list, then confirm with the user before saving `domain_config.json`.
+
+Think like a literature survey brainstorm:
+
+| Angle | What to add |
+|-------|-------------|
+| Core | Canonical name + common English synonyms / abbreviations |
+| Reviews | `… review`, `… survey`, `… state of the art` |
+| Theory / method | Mechanisms, models, characterization, key techniques |
+| Adjacent | Neighboring subfields that still feed the curriculum |
+| Materials / systems | Concrete systems or named families in the domain |
+| Controversies / frontiers | Open problems, recent buzzwords (sparingly) |
+| Contrast | What to avoid later via `negative_cues` (optional note) |
+
+Rules:
+
+- Prefer **6–15** searchable strings for a normal specialty (fewer if user insists on narrow; more if broad survey).
+- Mix **specific** queries and a few **broader** ones; include at least one review-oriented query.
+- Prefer English query strings for OpenAlex/Crossref unless the user needs a Chinese-only corpus.
+- Show the expanded list in the intake summary; allow the user to cut or add before confirm.
+
+Bad: `["solid electrolyte"]` alone.  
+Good: e.g. solid electrolyte review / LLZO / garnet electrolyte / sulfide electrolyte / interfacial resistance / lithium metal anode solid state / …
 
 ### Q2 — Target paper count `{N}`
 
