@@ -1,8 +1,12 @@
 ﻿#!/usr/bin/env python3
 """Harvest works from OpenAlex + Crossref into {DOMAIN}-candidates/candidates.json.
 
-Writes candidates.json after each seed / API batch / reference fetch so an
-interrupted run keeps everything found so far.
+Each theme×API writes its own shard under {DOMAIN}-candidates/shards/
+(e.g. solid_electrolyte.ab12cd34.openalex.json). OpenAlex and Crossref for the
+same theme may run in parallel because they never share a file. After all themes
+finish, shards are merged once into candidates.json (seeds already there kept).
+
+Themes stay sequential to limit OpenAlex daily budget burn.
 """
 
 from __future__ import annotations
@@ -11,6 +15,7 @@ import argparse
 import json
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -21,8 +26,11 @@ if str(_PKG) not in sys.path:
 
 from papers_library_pipeline import crossref_client, openalex_client
 from papers_library_pipeline.candidates import (
+    integrate_shards,
     load_candidates_doc,
     merge_and_save,
+    shards_dir_for,
+    write_shard,
 )
 from papers_library_pipeline.paths import ensure_dirs, load_config
 from papers_library_pipeline.score import script_score
@@ -74,18 +82,16 @@ def _tag_theme(recs: list[dict[str, Any]], theme: str, cfg: dict) -> list[dict[s
     return recs
 
 
-def harvest_theme(
+def _harvest_openalex(
     theme: str,
     cfg: dict,
     *,
-    path: Path,
-    items: list[dict[str, Any]],
-    next_id: int,
-) -> list[dict[str, Any]]:
-    """Search one theme; checkpoint candidates.json after each API batch."""
+    shards_dir: Path,
+) -> Path | None:
     mailto = cfg.get("mailto") or "kb-harvester@example.com"
     limit = int(cfg.get("per_theme_limit") or 40)
-
+    collected: list[dict[str, Any]] = []
+    out_path: Path | None = None
     for typ in ("review", "book", None):
         if openalex_client.is_rate_limited():
             break
@@ -93,36 +99,66 @@ def harvest_theme(
             batch = openalex_client.search_works(
                 theme, per_page=limit, typ=typ, mailto=mailto
             )
-            items = merge_and_save(
-                path, items, _tag_theme(batch, theme, cfg), next_id=next_id
-            )
-            print(
-                f"  [checkpoint] openalex typ={typ!r} → {len(items)} candidates",
-                flush=True,
-            )
+            if batch:
+                collected.extend(_tag_theme(batch, theme, cfg))
+                out_path = write_shard(shards_dir, theme, "openalex", collected)
+                print(
+                    f"  [shard] openalex typ={typ!r} → {len(collected)} items",
+                    flush=True,
+                )
         except Exception as e:
             print(f"[openalex] theme={theme!r} typ={typ}: {e}", file=sys.stderr)
         if openalex_client.is_rate_limited():
             break
         time.sleep(1.0)
+    return out_path
 
+
+def _harvest_crossref(
+    theme: str,
+    cfg: dict,
+    *,
+    shards_dir: Path,
+) -> Path | None:
+    mailto = cfg.get("mailto") or "kb-harvester@example.com"
+    limit = int(cfg.get("per_theme_limit") or 40)
+    collected: list[dict[str, Any]] = []
+    out_path: Path | None = None
     for typ in ("book", None):
         try:
             batch = crossref_client.search_works(
                 theme, rows=limit, typ=typ, mailto=mailto
             )
-            items = merge_and_save(
-                path, items, _tag_theme(batch, theme, cfg), next_id=next_id
-            )
-            print(
-                f"  [checkpoint] crossref typ={typ!r} → {len(items)} candidates",
-                flush=True,
-            )
+            if batch:
+                collected.extend(_tag_theme(batch, theme, cfg))
+                out_path = write_shard(shards_dir, theme, "crossref", collected)
+                print(
+                    f"  [shard] crossref typ={typ!r} → {len(collected)} items",
+                    flush=True,
+                )
         except Exception as e:
             print(f"[crossref] theme={theme!r} typ={typ}: {e}", file=sys.stderr)
         time.sleep(1.2)
+    return out_path
 
-    return items
+
+def harvest_theme(
+    theme: str,
+    cfg: dict,
+    *,
+    shards_dir: Path,
+) -> None:
+    """Search one theme; OpenAlex ∥ Crossref each write their own shard file."""
+    shards_dir = Path(shards_dir)
+    shards_dir.mkdir(parents=True, exist_ok=True)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [
+            pool.submit(_harvest_openalex, theme, cfg, shards_dir=shards_dir),
+            pool.submit(_harvest_crossref, theme, cfg, shards_dir=shards_dir),
+        ]
+        for fut in as_completed(futures):
+            fut.result()
+    print(f"  [shard] theme complete {theme!r}", flush=True)
 
 
 def expand_references(
@@ -185,6 +221,9 @@ def main() -> int:
 
     start = int(cfg.get("next_id_start") or 1000)
     cand_path = Path(cfg["_candidates"])
+    shards_dir = shards_dir_for(cand_path)
+    shards_dir.mkdir(parents=True, exist_ok=True)
+
     doc = load_candidates_doc(cand_path, next_id_start=start)
     items = doc["items"]
     next_id = int(doc.get("next_id") or start)
@@ -198,11 +237,14 @@ def main() -> int:
             items = merge_and_save(cand_path, items, [enrich_seed(s, cfg)], next_id=next_id)
             print(f"  [checkpoint] seed {i}/{len(seeds)} → {len(items)} candidates", flush=True)
 
-    for theme in cfg.get("search_themes") or []:
+    themes = list(cfg.get("search_themes") or [])
+    for theme in themes:
         print(f"harvest theme: {theme}", flush=True)
-        items = harvest_theme(
-            theme, cfg, path=cand_path, items=items, next_id=next_id
-        )
+        harvest_theme(theme, cfg, shards_dir=shards_dir)
+
+    print("integrating shards → candidates.json (dedupe) …", flush=True)
+    items = integrate_shards(cand_path, next_id=next_id, next_id_start=start)
+    print(f"  [merge] {len(items)} candidates after deduped shard merge", flush=True)
 
     if not args.skip_refs:
         print("expand references…", flush=True)

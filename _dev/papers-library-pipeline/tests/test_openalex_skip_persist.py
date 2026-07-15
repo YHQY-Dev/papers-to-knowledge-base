@@ -22,11 +22,10 @@ def teardown_function():
 def test_mark_rate_limited_persists_utc_day_skip(tmp_path: Path):
     path = tmp_path / "source-health.json"
     source_health.configure(path)
-    now = datetime(2026, 7, 14, 8, 0, 0, tzinfo=timezone.utc)
-    source_health.mark_openalex_skip_for_utc_day("HTTP 429", now=now)
+    now = datetime.now(timezone.utc)
     openalex_client.mark_rate_limited("HTTP 429")
     data = source_health.load()
-    assert data["openalex_skip_until"] == "2026-07-14T23:59:59+00:00"
+    assert data["openalex_skip_until"] == source_health.utc_end_of_day(now).isoformat()
     assert "429" in data["openalex_skip_reason"]
     assert openalex_client.is_rate_limited()
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -96,6 +97,116 @@ def merge_and_save(
         return existing
     merged = merge_records(existing, new_items)
     save_candidates(path, merged, next_id=next_id)
+    return merged
+
+
+def checkpoint_merge(
+    path: Path,
+    new_items: list[dict[str, Any]],
+    *,
+    next_id: int | None = None,
+    next_id_start: int = 1000,
+) -> list[dict[str, Any]]:
+    """Reload candidates from disk, merge `new_items`, save."""
+    if not new_items:
+        doc = load_candidates_doc(path, next_id_start=next_id_start)
+        return doc["items"]
+    doc = load_candidates_doc(path, next_id_start=next_id_start)
+    items = doc["items"]
+    nid = next_id if next_id is not None else int(doc.get("next_id") or next_id_start)
+    return merge_and_save(path, items, new_items, next_id=nid)
+
+
+def theme_slug(theme: str) -> str:
+    """Filesystem-safe id for a harvest theme (stable hash suffix)."""
+    raw = (theme or "").strip()
+    base = re.sub(r"[^\w\-]+", "_", raw.lower(), flags=re.UNICODE).strip("_")
+    base = (base[:60] or "theme")
+    digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:8]
+    return f"{base}.{digest}"
+
+
+def shards_dir_for(candidates_path: Path) -> Path:
+    return Path(candidates_path).parent / "shards"
+
+
+def shard_path(shards_dir: Path, theme: str, api: str) -> Path:
+    api = api.strip().lower()
+    return Path(shards_dir) / f"{theme_slug(theme)}.{api}.json"
+
+
+def write_shard(
+    shards_dir: Path,
+    theme: str,
+    api: str,
+    items: list[dict[str, Any]],
+) -> Path:
+    """Write one theme×API shard atomically (single writer per file).
+
+    Items are deduped (DOI → ISBN → normalized title) before write.
+    """
+    shards_dir = Path(shards_dir)
+    shards_dir.mkdir(parents=True, exist_ok=True)
+    path = shard_path(shards_dir, theme, api)
+    deduped = merge_records([], items)
+    payload = {
+        "theme": theme,
+        "api": api,
+        "count": len(deduped),
+        "items": deduped,
+    }
+    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(path)
+    return path
+
+
+def load_shard_items(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    if isinstance(data, list):
+        return data
+    return list(data.get("items") or [])
+
+
+def collect_all_shard_items(shards_dir: Path) -> list[dict[str, Any]]:
+    shards_dir = Path(shards_dir)
+    if not shards_dir.is_dir():
+        return []
+    out: list[dict[str, Any]] = []
+    for p in sorted(shards_dir.glob("*.json")):
+        if p.name.endswith(".tmp"):
+            continue
+        out.extend(load_shard_items(p))
+    return out
+
+
+def integrate_shards(
+    candidates_path: Path,
+    *,
+    next_id: int | None = None,
+    next_id_start: int = 1000,
+) -> list[dict[str, Any]]:
+    """Merge all shard files into candidates.json with dedupe.
+
+    Keeps seeds / existing rows. Dedupe key: DOI → ISBN → normalized title
+    (see `merge_records` / `record_key`).
+    """
+    shards = shards_dir_for(candidates_path)
+    doc = load_candidates_doc(candidates_path, next_id_start=next_id_start)
+    base = doc["items"]
+    shard_items = collect_all_shard_items(shards)
+    if not shard_items:
+        return base
+    nid = next_id if next_id is not None else int(doc.get("next_id") or next_id_start)
+    # Explicit: merge_records dedupes across seeds + all theme×api shards
+    merged = merge_records(base, shard_items)
+    save_candidates(candidates_path, merged, next_id=nid)
     return merged
 
 
