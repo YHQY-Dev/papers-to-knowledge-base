@@ -1,6 +1,6 @@
 # Install by host
 
-Install **only for the agent you use**. Each host scans a different skills directory.
+Default: install into the **current project** only. Do not use the personal/home skills directory unless the user asks for a global install.
 
 ## Which folders
 
@@ -10,35 +10,50 @@ Install **only for the agent you use**. Each host scans a different skills direc
 | `papers-library-pipeline` | Stage A |
 | `papers-knowledge-site` | Stage B |
 
-| Goal | Link these |
-|------|------------|
+| Goal | Install these |
+|------|---------------|
 | Full | all three |
 | Library only | orchestrator + A |
 | Site only | orchestrator + B |
 
-Commands for each host are in the [repo README](../../../README.md). Summary of destinations:
+## Project paths (preferred)
 
-| Host | Personal path | Project path |
-|------|---------------|--------------|
-| Cursor | `~/.cursor/skills/<name>/` | `.cursor/skills/<name>/` |
-| Claude Code | `~/.claude/skills/<name>/` | `.claude/skills/<name>/` |
-| Codex | `~/.agents/skills/<name>/` | `.agents/skills/<name>/` |
-| OpenCode | `~/.config/opencode/skills/<name>/` | `.opencode/skills/<name>/` |
-| Pi | `~/.pi/agent/skills/<name>/` | `.pi/skills/<name>/` |
+Copy folders from this repo’s `skills/` into:
 
-Reload that agent after linking.
+| Host | Under the project |
+|------|-------------------|
+| Cursor | `.cursor/skills/<name>/` |
+| Claude Code | `.claude/skills/<name>/` |
+| Codex | `.agents/skills/<name>/` |
+| OpenCode | `.opencode/skills/<name>/` |
+| Pi | `.pi/skills/<name>/` |
+
+Each installed folder must contain `SKILL.md`. Prefer **copy**. Reload the agent afterward.
+
+**Agent anti-patterns**
+
+- Do not `git clone` a second full copy into temp just to move files, if this repo is already the workspace  
+- Do not write to `~/.cursor/skills` (etc.) unless the user wants personal/global skills  
+
+## Personal paths (optional)
+
+| Host | Personal path |
+|------|---------------|
+| Cursor | `~/.cursor/skills/<name>/` |
+| Claude Code | `~/.claude/skills/<name>/` |
+| Codex | `~/.agents/skills/<name>/` |
+| OpenCode | `~/.config/opencode/skills/<name>/` |
+| Pi | `~/.pi/agent/skills/<name>/` |
 
 ## How discovery works
 
 | Host | Notes |
 |------|-------|
-| Cursor | Reads `~/.cursor/skills` / project `.cursor/skills` |
-| Claude Code | Reads `~/.claude/skills` / `.claude/skills` |
-| Codex | Reads `~/.agents/skills` / `.agents/skills` |
+| Cursor | Project `.cursor/skills` and/or personal `~/.cursor/skills` |
+| Claude Code | Project `.claude/skills` and/or `~/.claude/skills` |
+| Codex | Project `.agents/skills` and/or `~/.agents/skills` |
 | OpenCode | Native skill tool; loads on demand |
 | Pi | Lists skills; may use `/skill:<name>` |
-
-Tool names in `SKILL.md` are host-agnostic intent (shell / edit / read / MCP). Map them to the host’s tools.
 
 ## Optional PaddleOCR MCP (stage B)
 
@@ -58,4 +73,4 @@ Missing token → MarkItDown only via `papers-knowledge-site`.
 
 ## Python
 
-`uv sync` at the **repo root** (shared by A and B). Not related to which agent skills directory you linked.
+`uv sync` at **this repo’s root** (shared by A and B). Separate from where you put skills for discovery.

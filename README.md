@@ -46,15 +46,51 @@ Example prompts:
 
 ## What’s in the repo
 
-Three installable Agent Skills (link them into **the one agent you use**):
-
 | Folder | Role |
 |--------|------|
 | [`skills/papers-to-knowledge-base`](skills/papers-to-knowledge-base/) | Orchestrator: intake, bind vars, route to A / B |
 | [`skills/papers-library-pipeline`](skills/papers-library-pipeline/) | A: harvest → triage → download → Excel |
 | [`skills/papers-knowledge-site`](skills/papers-knowledge-site/) | B: PDF→MD → static site |
 
-Scripts share one [uv](https://docs.astral.sh/uv/) workspace at the repo root (independent of which agent you linked):
+| Goal | Install these folders |
+|------|------------------------|
+| Full pipeline | all three |
+| Library only | orchestrator + `papers-library-pipeline` |
+| Site only | orchestrator + `papers-knowledge-site` |
+
+## Install (project skills — recommended)
+
+Put the skill folders into **this project’s** skills directory (not the user home directory).
+
+| Host | Path under the project |
+|------|------------------------|
+| Cursor | `.cursor/skills/<name>/` |
+| Claude Code | `.claude/skills/<name>/` |
+| Codex | `.agents/skills/<name>/` |
+| OpenCode | `.opencode/skills/<name>/` |
+| Pi | `.pi/skills/<name>/` |
+
+**What to install:** copy (or move) the chosen folders from this repo’s [`skills/`](skills/) into that path. Each folder must contain `SKILL.md`.
+
+Example (Cursor, full pipeline) — after you already have this repo open / checked out:
+
+```text
+.cursor/skills/papers-to-knowledge-base/
+.cursor/skills/papers-library-pipeline/
+.cursor/skills/papers-knowledge-site/
+```
+
+**For agents:** install into the **current project** skills path above. Do **not** install into `~/.cursor/skills` (or other home paths) unless the user explicitly asks for a personal/global install. Do **not** clone the whole repo into a temp folder just to re-copy — if the repo is already the workspace, place/copy folders from `skills/` into `.cursor/skills/` (or the matching host path). Prefer **copy** of the skill folders so the project is self-contained; a symlink/junction is fine only when the user asks to keep a single shared checkout.
+
+Reload the agent after installing. Details: [`skills/papers-to-knowledge-base/references/install-hosts.md`](skills/papers-to-knowledge-base/references/install-hosts.md).
+
+### Optional: personal (all projects)
+
+Only if the user wants skills in every project: use the host’s **personal** skills dir (`~/.cursor/skills/`, `~/.claude/skills/`, …) with the same folder names. Default remains **project-local**.
+
+## Python tooling
+
+Scripts use a [uv](https://docs.astral.sh/uv/) workspace at **this repo root** (where `pyproject.toml` and `skills/*/scripts` live). From that root:
 
 ```powershell
 uv sync --group dev
@@ -76,91 +112,6 @@ Copy-Item .env.example .env
 ```
 
 Harvest scripts load `.env` automatically. The PaddleOCR MCP template uses `uvx --env-file .env` so the token stays out of `mcp.json`.
-
-## Install skills (per agent)
-
-| Goal | Link these under `skills/` |
-|------|----------------------------|
-| Full pipeline | all three |
-| Library only | orchestrator + `papers-library-pipeline` |
-| Site only | orchestrator + `papers-knowledge-site` |
-
-**Install only for the agent you use** — not every host at once. Set `REPO` to your clone root (the folder that contains `skills/`), then use one section below.
-
-### Cursor
-
-Personal: `~/.cursor/skills/<name>/` · Project: `.cursor/skills/<name>/`
-
-```powershell
-$REPO = "D:\path\to\papers-to-knowledge-base"
-$dest = "$env:USERPROFILE\.cursor\skills"
-New-Item -ItemType Directory -Force -Path $dest | Out-Null
-foreach ($name in @(
-  "papers-to-knowledge-base",
-  "papers-library-pipeline",
-  "papers-knowledge-site"
-)) {
-  New-Item -ItemType Junction -Force -Path "$dest\$name" -Target "$REPO\skills\$name" | Out-Null
-}
-```
-
-```bash
-REPO=/path/to/papers-to-knowledge-base
-mkdir -p ~/.cursor/skills
-for name in papers-to-knowledge-base papers-library-pipeline papers-knowledge-site; do
-  ln -sfn "$REPO/skills/$name" ~/.cursor/skills/$name
-done
-```
-
-### Claude Code
-
-Personal: `~/.claude/skills/<name>/` · Project: `.claude/skills/<name>/`
-
-```bash
-REPO=/path/to/papers-to-knowledge-base
-mkdir -p ~/.claude/skills
-for name in papers-to-knowledge-base papers-library-pipeline papers-knowledge-site; do
-  ln -sfn "$REPO/skills/$name" ~/.claude/skills/$name
-done
-```
-
-### Codex
-
-Personal: `~/.agents/skills/<name>/` · Project: `.agents/skills/<name>/`
-
-```bash
-REPO=/path/to/papers-to-knowledge-base
-mkdir -p ~/.agents/skills
-for name in papers-to-knowledge-base papers-library-pipeline papers-knowledge-site; do
-  ln -sfn "$REPO/skills/$name" ~/.agents/skills/$name
-done
-```
-
-### OpenCode
-
-Personal: `~/.config/opencode/skills/<name>/` · Project: `.opencode/skills/<name>/`
-
-```bash
-REPO=/path/to/papers-to-knowledge-base
-mkdir -p ~/.config/opencode/skills
-for name in papers-to-knowledge-base papers-library-pipeline papers-knowledge-site; do
-  ln -sfn "$REPO/skills/$name" ~/.config/opencode/skills/$name
-done
-```
-
-### Pi
-
-Personal: `~/.pi/agent/skills/<name>/` · Project: `.pi/skills/<name>/`
-
-```bash
-REPO=/path/to/papers-to-knowledge-base
-mkdir -p ~/.pi/agent/skills
-for name in papers-to-knowledge-base papers-library-pipeline papers-knowledge-site; do
-  ln -sfn "$REPO/skills/$name" ~/.pi/agent/skills/$name
-done
-```
-
-Reload that agent afterward. MCP and project paths: [`skills/papers-to-knowledge-base/references/install-hosts.md`](skills/papers-to-knowledge-base/references/install-hosts.md).
 
 ## License
 

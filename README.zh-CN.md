@@ -46,15 +46,51 @@
 
 ## 仓库里有什么
 
-三个可安装的 Agent Skill（装到**你正在用的那个**助手的 skills 目录即可）：
-
 | 目录 | 职责 |
 |------|------|
 | [`skills/papers-to-knowledge-base`](skills/papers-to-knowledge-base/) | 编排：问诊、变量绑定、路由到 A / B |
 | [`skills/papers-library-pipeline`](skills/papers-library-pipeline/) | A：收获 → 精评 → 下载 → Excel |
 | [`skills/papers-knowledge-site`](skills/papers-knowledge-site/) | B：PDF→MD → 站点 |
 
-脚本用仓库根的 **uv** 共用环境（与装哪个助手无关）：
+| 目标 | 安装这些文件夹 |
+|------|----------------|
+| 全流程 | 三个全部 |
+| 仅文献库 | 编排 + `papers-library-pipeline` |
+| 仅建站 | 编排 + `papers-knowledge-site` |
+
+## 安装（推荐：装到当前项目）
+
+把 skill 文件夹放到**当前项目**的 skills 目录即可，**不要**默认装到用户主目录。
+
+| 宿主 | 项目内路径 |
+|------|------------|
+| Cursor | `.cursor/skills/<name>/` |
+| Claude Code | `.claude/skills/<name>/` |
+| Codex | `.agents/skills/<name>/` |
+| OpenCode | `.opencode/skills/<name>/` |
+| Pi | `.pi/skills/<name>/` |
+
+**怎么装：** 从本仓库 [`skills/`](skills/) 里，把要用的文件夹**复制**进上面的路径。每个文件夹里要有 `SKILL.md`。
+
+Cursor 全流程示例：
+
+```text
+.cursor/skills/papers-to-knowledge-base/
+.cursor/skills/papers-library-pipeline/
+.cursor/skills/papers-knowledge-site/
+```
+
+**给 Agent 的约定：** 默认装到**当前项目**的 skills 路径。除非用户明确要求「个人/全局安装」，否则不要写到 `~/.cursor/skills` 等家目录。若当前工作区就是本仓库，直接从 `skills/` 拷到 `.cursor/skills/`（或对应宿主路径），**不要**再克隆一整份到临时目录再搬一次。默认用**复制**；只有用户要求共用一份 checkout 时才用软链/junction。
+
+装完后重载该助手。更多说明：[`skills/papers-to-knowledge-base/references/install-hosts.md`](skills/papers-to-knowledge-base/references/install-hosts.md)。
+
+### 可选：个人目录（所有项目可用）
+
+仅当用户希望每个项目都能用时，再装到宿主个人目录（`~/.cursor/skills/`、`~/.claude/skills/` 等）。默认仍是**仅当前项目**。
+
+## Python 脚本环境
+
+脚本用本仓库根目录的 [uv](https://docs.astral.sh/uv/) workspace（含 `pyproject.toml` 与 `skills/*/scripts`）。在仓库根执行：
 
 ```powershell
 uv sync --group dev
@@ -76,91 +112,6 @@ Copy-Item .env.example .env
 ```
 
 收获脚本会自动读取 `.env`。PaddleOCR MCP 模板用 `uvx --env-file .env`，无需把 token 写进 `mcp.json`。
-
-## 安装 skill（按助手）
-
-| 目标 | 联接 `skills/` 下这些目录 |
-|------|---------------------------|
-| 全流程 | 三个全部 |
-| 仅文献库 | 编排 + `papers-library-pipeline` |
-| 仅建站 | 编排 + `papers-knowledge-site` |
-
-**只安装你正在用的那个助手**，不要一次链到所有宿主。把 `REPO` 设成克隆根目录（含 `skills/`），再选下面一节。
-
-### Cursor
-
-个人：`~/.cursor/skills/<name>/` · 项目：`.cursor/skills/<name>/`
-
-```powershell
-$REPO = "D:\path\to\papers-to-knowledge-base"
-$dest = "$env:USERPROFILE\.cursor\skills"
-New-Item -ItemType Directory -Force -Path $dest | Out-Null
-foreach ($name in @(
-  "papers-to-knowledge-base",
-  "papers-library-pipeline",
-  "papers-knowledge-site"
-)) {
-  New-Item -ItemType Junction -Force -Path "$dest\$name" -Target "$REPO\skills\$name" | Out-Null
-}
-```
-
-```bash
-REPO=/path/to/papers-to-knowledge-base
-mkdir -p ~/.cursor/skills
-for name in papers-to-knowledge-base papers-library-pipeline papers-knowledge-site; do
-  ln -sfn "$REPO/skills/$name" ~/.cursor/skills/$name
-done
-```
-
-### Claude Code
-
-个人：`~/.claude/skills/<name>/` · 项目：`.claude/skills/<name>/`
-
-```bash
-REPO=/path/to/papers-to-knowledge-base
-mkdir -p ~/.claude/skills
-for name in papers-to-knowledge-base papers-library-pipeline papers-knowledge-site; do
-  ln -sfn "$REPO/skills/$name" ~/.claude/skills/$name
-done
-```
-
-### Codex
-
-个人：`~/.agents/skills/<name>/` · 项目：`.agents/skills/<name>/`
-
-```bash
-REPO=/path/to/papers-to-knowledge-base
-mkdir -p ~/.agents/skills
-for name in papers-to-knowledge-base papers-library-pipeline papers-knowledge-site; do
-  ln -sfn "$REPO/skills/$name" ~/.agents/skills/$name
-done
-```
-
-### OpenCode
-
-个人：`~/.config/opencode/skills/<name>/` · 项目：`.opencode/skills/<name>/`
-
-```bash
-REPO=/path/to/papers-to-knowledge-base
-mkdir -p ~/.config/opencode/skills
-for name in papers-to-knowledge-base papers-library-pipeline papers-knowledge-site; do
-  ln -sfn "$REPO/skills/$name" ~/.config/opencode/skills/$name
-done
-```
-
-### Pi
-
-个人：`~/.pi/agent/skills/<name>/` · 项目：`.pi/skills/<name>/`
-
-```bash
-REPO=/path/to/papers-to-knowledge-base
-mkdir -p ~/.pi/agent/skills
-for name in papers-to-knowledge-base papers-library-pipeline papers-knowledge-site; do
-  ln -sfn "$REPO/skills/$name" ~/.pi/agent/skills/$name
-done
-```
-
-联接后重载该助手。MCP、项目级路径等见 [`skills/papers-to-knowledge-base/references/install-hosts.md`](skills/papers-to-knowledge-base/references/install-hosts.md)。
 
 ## 许可
 
