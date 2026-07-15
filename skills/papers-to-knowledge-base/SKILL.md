@@ -63,7 +63,7 @@ Boundary: humans read **PDFs** from A; Markdown is mainly for **AI** authoring i
 | **Library-only** | orchestrator + `papers-library-pipeline` |
 | **Site-only** | orchestrator + `papers-knowledge-site` (minimum B; A optional if PDFs already exist) |
 
-Install into the **current project** skills dir for the host in use (e.g. Cursor: `.cursor/skills/`). See [install-hosts.md](references/install-hosts.md) / repo README. Do not default to personal `~/…/skills`.
+Install into the **current project** skills dir by placing folders from repo `skills/` there (e.g. Cursor: `.cursor/skills/<name>/`). See [install-hosts.md](references/install-hosts.md) / repo README. Do not default to personal `~/…/skills`.
 
 ## Optional PaddleOCR MCP (for B)
 

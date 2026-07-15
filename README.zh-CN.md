@@ -52,41 +52,41 @@
 | [`skills/papers-library-pipeline`](skills/papers-library-pipeline/) | A：收获 → 精评 → 下载 → Excel |
 | [`skills/papers-knowledge-site`](skills/papers-knowledge-site/) | B：PDF→MD → 站点 |
 
-| 目标 | 安装这些文件夹 |
-|------|----------------|
-| 全流程 | 三个全部 |
-| 仅文献库 | 编排 + `papers-library-pipeline` |
-| 仅建站 | 编排 + `papers-knowledge-site` |
-
 ## 安装（推荐：装到当前项目）
 
-把 skill 文件夹放到**当前项目**的 skills 目录即可，**不要**默认装到用户主目录。
+**给 Agent：** 只取本仓库 [`skills/`](https://github.com/YHQY-Dev/papers-to-knowledge-base/tree/main/skills) 下的文件夹，**直接**放到**当前项目**的 skills 目录（见下表）。安装目标就是项目内这个目录——不要把整个仓库 clone 成安装结果，也不要默认装到用户主目录的 skills（除非用户要个人/全局）。
 
-| 宿主 | 项目内路径 |
-|------|------------|
-| Cursor | `.cursor/skills/<name>/` |
-| Claude Code | `.claude/skills/<name>/` |
-| Codex | `.agents/skills/<name>/` |
-| OpenCode | `.opencode/skills/<name>/` |
-| Pi | `.pi/skills/<name>/` |
+| 宿主 | 安装目标（项目内） |
+|------|--------------------|
+| Cursor | `.cursor/skills/` |
+| Claude Code | `.claude/skills/` |
+| Codex | `.agents/skills/` |
+| OpenCode | `.opencode/skills/` |
+| Pi | `.pi/skills/` |
 
-**怎么装：** 从本仓库 [`skills/`](skills/) 里，把要用的文件夹**复制**进上面的路径。每个文件夹里要有 `SKILL.md`。
+| 目标 | 要放进该目录的文件夹 |
+|------|----------------------|
+| 全流程 | `papers-to-knowledge-base`、`papers-library-pipeline`、`papers-knowledge-site` |
+| 仅文献库 | `papers-to-knowledge-base`、`papers-library-pipeline` |
+| 仅建站 | `papers-to-knowledge-base`、`papers-knowledge-site` |
 
-Cursor 全流程示例：
+Cursor 全流程结果：
 
 ```text
-.cursor/skills/papers-to-knowledge-base/
+.cursor/skills/papers-to-knowledge-base/   # 来自仓库 skills/papers-to-knowledge-base
 .cursor/skills/papers-library-pipeline/
 .cursor/skills/papers-knowledge-site/
 ```
 
-**给 Agent 的约定：** 默认装到**当前项目**的 skills 路径。除非用户明确要求「个人/全局安装」，否则不要写到 `~/.cursor/skills` 等家目录。若当前工作区就是本仓库，直接从 `skills/` 拷到 `.cursor/skills/`（或对应宿主路径），**不要**再克隆一整份到临时目录再搬一次。默认用**复制**；只有用户要求共用一份 checkout 时才用软链/junction。
+每个文件夹须含 `SKILL.md` 及该 skill 目录下其余内容（`scripts/`、`references/` 等）。
 
-装完后重载该助手。更多说明：[`skills/papers-to-knowledge-base/references/install-hosts.md`](skills/papers-to-knowledge-base/references/install-hosts.md)。
+来源：`https://github.com/YHQY-Dev/papers-to-knowledge-base` → `skills/<name>/` → 项目 `.cursor/skills/<name>/`（或上表对应宿主路径）。
 
-### 可选：个人目录（所有项目可用）
+装完后重载助手。详见 [`install-hosts.md`](skills/papers-to-knowledge-base/references/install-hosts.md)。
 
-仅当用户希望每个项目都能用时，再装到宿主个人目录（`~/.cursor/skills/`、`~/.claude/skills/` 等）。默认仍是**仅当前项目**。
+### 可选：个人目录（所有项目）
+
+仅当用户希望每个项目都能用时，再装到 `~/.cursor/skills/` 等。默认仍是**仅当前项目**。
 
 ## Python 脚本环境
 

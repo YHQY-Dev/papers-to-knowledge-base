@@ -1,39 +1,39 @@
 # Install by host
 
-Default: install into the **current project** only. Do not use the personal/home skills directory unless the user asks for a global install.
+## Agent rule (default)
+
+Install **only** the folders under this repo’s `skills/` **directly into the current project’s** skills directory.
+
+- Source: `https://github.com/YHQY-Dev/papers-to-knowledge-base` → `skills/<name>/`
+- Target: project `.cursor/skills/<name>/` (or host row below)
+- Do **not** treat a full-repo clone as the install result
+- Do **not** install to `~/…/skills` unless the user asks for personal/global
 
 ## Which folders
 
-| Folder under repo `skills/` | Role |
-|-----------------------------|------|
+| Folder under `skills/` | Role |
+|------------------------|------|
 | `papers-to-knowledge-base` | Orchestrator |
 | `papers-library-pipeline` | Stage A |
 | `papers-knowledge-site` | Stage B |
 
-| Goal | Install these |
-|------|---------------|
+| Goal | Folders |
+|------|---------|
 | Full | all three |
 | Library only | orchestrator + A |
 | Site only | orchestrator + B |
 
-## Project paths (preferred)
+## Project install targets
 
-Copy folders from this repo’s `skills/` into:
+| Host | Directory under the project |
+|------|-----------------------------|
+| Cursor | `.cursor/skills/` |
+| Claude Code | `.claude/skills/` |
+| Codex | `.agents/skills/` |
+| OpenCode | `.opencode/skills/` |
+| Pi | `.pi/skills/` |
 
-| Host | Under the project |
-|------|-------------------|
-| Cursor | `.cursor/skills/<name>/` |
-| Claude Code | `.claude/skills/<name>/` |
-| Codex | `.agents/skills/<name>/` |
-| OpenCode | `.opencode/skills/<name>/` |
-| Pi | `.pi/skills/<name>/` |
-
-Each installed folder must contain `SKILL.md`. Prefer **copy**. Reload the agent afterward.
-
-**Agent anti-patterns**
-
-- Do not `git clone` a second full copy into temp just to move files, if this repo is already the workspace  
-- Do not write to `~/.cursor/skills` (etc.) unless the user wants personal/global skills  
+Each installed `<name>/` must contain `SKILL.md` and the rest of that skill tree. Reload the agent afterward.
 
 ## Personal paths (optional)
 
@@ -73,4 +73,4 @@ Missing token → MarkItDown only via `papers-knowledge-site`.
 
 ## Python
 
-`uv sync` at **this repo’s root** (shared by A and B). Separate from where you put skills for discovery.
+`uv sync` at **this repo’s root** (shared by A and B) when you need to run harvest / PDF→MD scripts. Separate from skill discovery paths.

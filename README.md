@@ -52,41 +52,41 @@ Example prompts:
 | [`skills/papers-library-pipeline`](skills/papers-library-pipeline/) | A: harvest → triage → download → Excel |
 | [`skills/papers-knowledge-site`](skills/papers-knowledge-site/) | B: PDF→MD → static site |
 
-| Goal | Install these folders |
-|------|------------------------|
-| Full pipeline | all three |
-| Library only | orchestrator + `papers-library-pipeline` |
-| Site only | orchestrator + `papers-knowledge-site` |
-
 ## Install (project skills — recommended)
 
-Put the skill folders into **this project’s** skills directory (not the user home directory).
+**For agents:** clone / fetch **only** the folders under [`skills/`](https://github.com/YHQY-Dev/papers-to-knowledge-base/tree/main/skills) and place them **directly** into the **current project’s** skills directory (table below). That directory is the install target — not a temp clone of the whole repo, and not the user-home skills path (unless the user asks for personal/global).
 
-| Host | Path under the project |
-|------|------------------------|
-| Cursor | `.cursor/skills/<name>/` |
-| Claude Code | `.claude/skills/<name>/` |
-| Codex | `.agents/skills/<name>/` |
-| OpenCode | `.opencode/skills/<name>/` |
-| Pi | `.pi/skills/<name>/` |
+| Host | Install target (under the project) |
+|------|--------------------------------------|
+| Cursor | `.cursor/skills/` |
+| Claude Code | `.claude/skills/` |
+| Codex | `.agents/skills/` |
+| OpenCode | `.opencode/skills/` |
+| Pi | `.pi/skills/` |
 
-**What to install:** copy (or move) the chosen folders from this repo’s [`skills/`](skills/) into that path. Each folder must contain `SKILL.md`.
+| Goal | Folders to put under that directory |
+|------|-------------------------------------|
+| Full | `papers-to-knowledge-base`, `papers-library-pipeline`, `papers-knowledge-site` |
+| Library only | `papers-to-knowledge-base`, `papers-library-pipeline` |
+| Site only | `papers-to-knowledge-base`, `papers-knowledge-site` |
 
-Example (Cursor, full pipeline) — after you already have this repo open / checked out:
+Result (Cursor, full):
 
 ```text
-.cursor/skills/papers-to-knowledge-base/
+.cursor/skills/papers-to-knowledge-base/   # from repo skills/papers-to-knowledge-base
 .cursor/skills/papers-library-pipeline/
 .cursor/skills/papers-knowledge-site/
 ```
 
-**For agents:** install into the **current project** skills path above. Do **not** install into `~/.cursor/skills` (or other home paths) unless the user explicitly asks for a personal/global install. Do **not** clone the whole repo into a temp folder just to re-copy — if the repo is already the workspace, place/copy folders from `skills/` into `.cursor/skills/` (or the matching host path). Prefer **copy** of the skill folders so the project is self-contained; a symlink/junction is fine only when the user asks to keep a single shared checkout.
+Each folder must include `SKILL.md` and the rest of that skill’s tree (`scripts/`, `references/`, …).
 
-Reload the agent after installing. Details: [`skills/papers-to-knowledge-base/references/install-hosts.md`](skills/papers-to-knowledge-base/references/install-hosts.md).
+Source: `https://github.com/YHQY-Dev/papers-to-knowledge-base` → path `skills/<name>/` → project `.cursor/skills/<name>/` (or the host row above).
+
+Reload the agent after installing. More: [`install-hosts.md`](skills/papers-to-knowledge-base/references/install-hosts.md).
 
 ### Optional: personal (all projects)
 
-Only if the user wants skills in every project: use the host’s **personal** skills dir (`~/.cursor/skills/`, `~/.claude/skills/`, …) with the same folder names. Default remains **project-local**.
+Only if the user wants every project: `~/.cursor/skills/` (etc.). Default is **project-local**.
 
 ## Python tooling
 
